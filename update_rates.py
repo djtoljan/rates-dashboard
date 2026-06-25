@@ -4,8 +4,8 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-REPO_ROOT = os.path.dirname(SCRIPT_DIR) if 'workflows' in SCRIPT_DIR else os.getcwd()
-RATES_FILE = os.path.join(REPO_ROOT, 'rates.json')
+# In GitHub Actions, cwd is the repo root — write rates.json there
+RATES_FILE = os.path.join(os.getcwd(), 'rates.json')
 
 # Load existing data
 try:
