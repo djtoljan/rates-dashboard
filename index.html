@@ -59,6 +59,7 @@
   </div>
   <div class="card">
     <h2><span class="dot xfee"></span> XFeepay <span class="badge stale" id="xfee-badge">ждём</span></h2>
+    <div class="rate-label" style="margin-bottom:6px">Котировки XFeepay</div>
     <div id="xfee-rates"><span class="loading">Загрузка...</span></div>
   </div>
   <div class="card">
@@ -166,17 +167,18 @@ function renderXE() {
 
 function renderXFee() {
   const el = document.getElementById('xfee-rates');
+  const pairs = {
+    'USD': { label: 'USD/EUR', rate: rates.xfee['EUR'] },
+    'EUR': { label: 'USD/EUR', rate: rates.xfee['EUR'] },
+    'CNY': { label: 'USD/CNH', rate: rates.xfee['CNY'] },
+    'TRY': { label: 'TRY', rate: null }
+  };
   let html = '';
-  for (const c of CURRENCIES) {
-    const r = rates.xfee[c];
-    if (c === 'USD' || c === 'TRY') {
-      html += `<div class="rate-row"><span class="pair">${c}</span>
-        <span class="rate" style="color:#888">—</span></div>`;
-    } else {
-      html += `<div class="rate-row"><span class="pair">${c}/RUB</span>
-        <span class="rate">${r ? r.toFixed(4)+' ₽' : '<span style="color:#888">—</span>'}</span></div>`;
-    }
-  }
+  // Show USD/EUR once, USD/CNH once, hide USD/TRY
+  html += `<div class="rate-row"><span class="pair">USD/EUR</span>
+    <span class="rate">${rates.xfee['EUR'] ? rates.xfee['EUR'].toFixed(4) : '<span style="color:#888">—</span>'}</span></div>`;
+  html += `<div class="rate-row"><span class="pair">USD/CNH</span>
+    <span class="rate">${rates.xfee['CNY'] ? rates.xfee['CNY'].toFixed(4) : '<span style="color:#888">—</span>'}</span></div>`;
   el.innerHTML = html;
 }
 
@@ -227,13 +229,19 @@ function updateCalc() {
     return;
   }
 
-  // XFeepay: RUB per unit for EUR and CNY only
+  // XFeepay: raw pairs USD/EUR, USD/CNH → convert to RUB via CBR
   if (activeSource === 'xfee') {
-    const r = rates.xfee[currency];
-    if (!r) { el.innerHTML='<div class="big">—</div><div class="detail">XFeepay: нет данных для '+currency+'</div>'; return; }
-    const total = amount * r;
+    const usdRub = rates.cbr['USD'];
+    if (currency === 'USD' || currency === 'TRY') {
+      el.innerHTML='<div class="big">—</div><div class="detail">XFeepay: нет данных для '+currency+'</div>'; return;
+    }
+    const raw = rates.xfee[currency];  // USD/EUR or USD/CNH
+    if (!raw || !usdRub) { el.innerHTML='<div class="big">—</div><div class="detail">Нет данных</div>'; return; }
+    const rub = usdRub / raw;
+    const pair = currency === 'EUR' ? 'USD/EUR' : 'USD/CNH';
+    const total = amount * rub;
     el.innerHTML = `<div class="big">${total.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})} ₽</div>
-      <div class="detail">${amount.toLocaleString('ru-RU')} ${currency} × ${r.toFixed(4)} ₽/ед (${labels[activeSource]})</div>`;
+      <div class="detail">${amount.toLocaleString('ru-RU')} ${currency} × (${usdRub.toFixed(2)} ₽/USD / ${raw.toFixed(4)} ${pair}) = ${rub.toFixed(4)} ₽/ед (${labels[activeSource]})</div>`;
     return;
   }
 
