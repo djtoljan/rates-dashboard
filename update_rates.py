@@ -23,13 +23,21 @@ try:
     root = ET.fromstring(xml_text)
     rates = {}
     targets = {'USD': 'R01235', 'EUR': 'R01239', 'CNY': 'R01375'}
+    # CBR gives RUB per unit — we convert to USD-base pairs
+    raw = {}
     for v in root.findall('Valute'):
         vid = v.get('ID')
         for code, tid in targets.items():
             if vid == tid:
                 nominal = int(v.find('Nominal').text)
                 value = float(v.find('Value').text.replace(',', '.'))
-                rates[code] = round(value / nominal, 4)
+                raw[code] = value / nominal
+    # Convert to USD-base: USD/EUR, USD/CNY, USD/RUB
+    rates = {
+        'USD/EUR': round(raw['EUR'] / raw['USD'], 4),
+        'USD/CNY': round(raw['CNY'] / raw['USD'], 4),
+        'USD/RUB': round(raw['USD'], 4)
+    }
     data['cbr'] = rates
     print('CBR:', rates)
 except Exception as e:
@@ -42,10 +50,11 @@ try:
     with urllib.request.urlopen(req, timeout=15) as resp:
         d = json.loads(resp.read())
     rub = d['rates']['RUB']
+    # USD-base pairs
     rates = {
-        'USD': round(rub, 4),
-        'EUR': round(rub / d['rates']['EUR'], 4),
-        'CNY': round(rub / d['rates']['CNY'], 4)
+        'USD/EUR': round(rub / d['rates']['EUR'], 4),
+        'USD/CNY': round(rub / d['rates']['CNY'], 4),
+        'USD/RUB': round(rub, 4)
     }
     data['xe'] = rates
     print('XE:', rates)
