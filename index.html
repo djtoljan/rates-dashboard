@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>💰 Курсы валют — Дашборд</title>
 <style>
-  :root { --bg:#0f1117; --card:#1a1d2e; --border:#2a2d3e; --text:#e0e0e0; --accent:#00d4aa; --red:#ff4757; --blue:#7c8aff; --gold:#ffa502; }
+  :root { --bg:#0f1117; --card:#1a1d2e; --border:#2a2d3e; --text:#e0e0e0; --accent:#00d4aa; --blue:#7c8aff; --gold:#ffa502; }
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; padding:20px; max-width:1100px; margin:0 auto; }
   h1 { font-size:1.6rem; margin-bottom:5px; }
@@ -21,8 +21,8 @@
   .rate-row:last-child { border-bottom:none; }
   .pair { font-weight:600; font-size:1.05rem; }
   .rate { font-size:1.3rem; font-weight:700; color:var(--accent); }
+  .rate-label { font-size:0.7rem; color:#888; }
   .loading { opacity:0.5; }
-  .updated { font-size:0.75rem; color:#666; margin-top:8px; }
   .calc { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:18px; }
   .calc h2 { font-size:1.1rem; margin-bottom:12px; }
   .calc-row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
@@ -48,10 +48,12 @@
 <div class="grid">
   <div class="card">
     <h2><span class="dot cbr"></span> ЦБ РФ <span class="badge live" id="cbr-badge">live</span></h2>
+    <div class="rate-label" style="margin-bottom:6px">₽ за единицу</div>
     <div id="cbr-rates"><span class="loading">Загрузка...</span></div>
   </div>
   <div class="card">
     <h2><span class="dot xe"></span> XE / Рынок <span class="badge live" id="xe-badge">live</span></h2>
+    <div class="rate-label" style="margin-bottom:6px">USD за 1 единицу</div>
     <div id="xe-rates"><span class="loading">Загрузка...</span></div>
   </div>
   <div class="card">
@@ -73,6 +75,7 @@
       <option value="USD">USD</option>
       <option value="EUR">EUR</option>
       <option value="CNY">CNY</option>
+      <option value="TRY">TRY</option>
     </select>
     <span style="color:#888;font-weight:600">→ RUB</span>
   </div>
@@ -87,26 +90,26 @@
 </div>
 
 <script>
-const PAIRS = ['USD/EUR','USD/CNY','USD/RUB'];
 let rates = { cbr:{}, xe:{}, xfee:{} };
 let activeSource = 'cbr';
+const CURRENCIES = ['USD','EUR','CNY','TRY'];
 
 async function loadRates() {
   try {
-    const resp = await fetch('rates.json?t=' + Date.now());
+    const resp = await fetch('rates.json?t='+Date.now());
     const data = await resp.json();
     rates.cbr = data.cbr || {};
     rates.xe = data.xe || {};
     rates.xfee = data.xfee || {};
 
-    renderCard('cbr-rates', rates.cbr, 'cbr');
-    renderCard('xe-rates', rates.xe, 'xe');
-    renderCard('xfee-rates', rates.xfee, 'xfee');
+    renderCBR();
+    renderXE();
+    renderXFee();
 
     if (data.updated) {
       const d = new Date(data.updated);
       document.getElementById('global-updated').textContent = 
-        'Обновлено: ' + d.toLocaleString('ru-RU',{timeZone:'Europe/Moscow'}) + ' МСК • авто 5 мин';
+        'Обновлено: '+d.toLocaleString('ru-RU',{timeZone:'Europe/Moscow'})+' МСК • авто 5 мин';
     }
     const age = data.updated ? (Date.now()-new Date(data.updated).getTime())/60000 : 999;
     const fresh = age < 60;
@@ -121,44 +124,65 @@ async function loadRates() {
   }
 }
 
-function renderCard(elId, data, source) {
-  const el = document.getElementById(elId);
+function renderCBR() {
+  const el = document.getElementById('cbr-rates');
   let html = '';
-  for (const pair of PAIRS) {
-    const r = data[pair];
-    if (r == null) {
-      html += `<div class="rate-row"><span class="pair">${pair}</span><span class="rate" style="color:#888">—</span></div>`;
-    } else {
-      html += `<div class="rate-row"><span class="pair">${pair}</span><span class="rate">${r.toFixed(4)}</span></div>`;
-    }
+  for (const c of CURRENCIES) {
+    const r = rates.cbr[c];
+    html += `<div class="rate-row"><span class="pair">${c}</span>
+      <span class="rate">${r ? r.toFixed(4)+' ₽' : '<span style="color:#888">—</span>'}</span></div>`;
   }
-  el.innerHTML = html || '<span style="color:#888">Нет данных</span>';
+  el.innerHTML = html;
+}
+
+function renderXE() {
+  const el = document.getElementById('xe-rates');
+  let html = '';
+  for (const c of ['EUR','CNY','TRY']) {
+    const r = rates.xe[c];
+    html += `<div class="rate-row"><span class="pair">${c}</span>
+      <span class="rate">${r ? '1 '+c+' = '+r.toFixed(4)+' USD' : '<span style="color:#888">—</span>'}</span></div>`;
+  }
+  el.innerHTML = html;
+}
+
+function renderXFee() {
+  const el = document.getElementById('xfee-rates');
+  let html = '';
+  for (const c of CURRENCIES) {
+    html += `<div class="rate-row"><span class="pair">${c}</span>
+      <span class="rate" style="color:#888">—</span></div>`;
+  }
+  el.innerHTML = html;
 }
 
 function updateCalc() {
   const amount = parseFloat(document.getElementById('calc-amount').value) || 0;
   const currency = document.getElementById('calc-currency').value;
-  const srcRates = rates[activeSource];
   const el = document.getElementById('calc-result');
-  if (!srcRates || !srcRates['USD/RUB']) {
-    el.innerHTML = '<div class="big">—</div><div class="detail">Нет данных</div>';
+  const labels = {cbr:'ЦБ РФ', xe:'XE / Рынок', xfee:'XFeepay'};
+
+  if (activeSource === 'cbr') {
+    const r = rates.cbr[currency];
+    if (!r) { el.innerHTML='<div class="big">—</div><div class="detail">Нет данных</div>'; return; }
+    const total = amount * r;
+    el.innerHTML = `<div class="big">${total.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})} ₽</div>
+      <div class="detail">${amount.toLocaleString('ru-RU')} ${currency} × ${r.toFixed(4)} ₽/ед (${labels[activeSource]})</div>`;
     return;
   }
-  const usdRub = srcRates['USD/RUB'];
-  let rubAmount;
-  if (currency === 'USD') {
-    rubAmount = amount * usdRub;
-  } else if (currency === 'EUR') {
-    const usdEur = srcRates['USD/EUR'];
-    rubAmount = usdEur ? amount * usdRub / usdEur : 0;
-  } else if (currency === 'CNY') {
-    const usdCny = srcRates['USD/CNY'];
-    rubAmount = usdCny ? amount * usdRub / usdCny : 0;
+
+  // XE: rates are USD per unit. Convert to RUB via CBR's USD/RUB
+  if (activeSource === 'xe') {
+    const usdPerUnit = rates.xe[currency];
+    const usdRub = rates.cbr['USD'];
+    if (!usdPerUnit || !usdRub) { el.innerHTML='<div class="big">—</div><div class="detail">Нет данных</div>'; return; }
+    const total = amount * usdPerUnit * usdRub;
+    el.innerHTML = `<div class="big">${total.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})} ₽</div>
+      <div class="detail">${amount.toLocaleString('ru-RU')} ${currency} × ${usdPerUnit.toFixed(4)} USD/ед × ${usdRub.toFixed(4)} ₽/USD (${labels[activeSource]})</div>`;
+    return;
   }
-  const labels = {cbr:'ЦБ РФ', xe:'XE / Рынок', xfee:'XFeepay'};
-  el.innerHTML = 
-    `<div class="big">${rubAmount.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})} ₽</div>
-     <div class="detail">${amount.toLocaleString('ru-RU')} ${currency} × курс (${labels[activeSource]})</div>`;
+
+  el.innerHTML='<div class="big">—</div><div class="detail">XFeepay — ждём данные</div>';
 }
 
 document.querySelectorAll('#rate-buttons button').forEach(btn => {
