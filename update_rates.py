@@ -82,6 +82,27 @@ try:
 except Exception as e:
     print(f'Yahoo error: {e}')
 
+# ─── XFeepay — from xfee-rates.json (local scraper) ──────
+try:
+    xfee_file = os.path.join(os.getcwd(), 'xfee-rates.json')
+    if os.path.exists(xfee_file):
+        with open(xfee_file) as f:
+            xd = json.load(f)
+        xfee = {}
+        usd_rub = data.get('cbr', {}).get('USD', 0)
+        # USD/EUR: 1 USD = X EUR → EUR/USD = 1/X, EUR/RUB = usd_rub / X
+        if xd.get('USD_EUR') and usd_rub:
+            xfee['EUR'] = round(usd_rub / xd['USD_EUR'], 4)
+        # USD/CNH: 1 USD = X CNH → CNH/RUB = usd_rub / X
+        if xd.get('USD_CNH') and usd_rub:
+            xfee['CNY'] = round(usd_rub / xd['USD_CNH'], 4)
+        # XFeepay doesn't have USD/RUB or TRY directly, leave empty
+        if xfee:
+            data['xfee'] = xfee
+            print('XFeepay (RUB/unit):', xfee)
+except Exception as e:
+    print(f'XFeepay error: {e}')
+
 # ─── Save ─────────────────────────────────────────────────
 data['updated'] = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 with open(RATES_FILE, 'w') as f:
