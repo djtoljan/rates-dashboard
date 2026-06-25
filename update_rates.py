@@ -35,16 +35,18 @@ try:
 except Exception as e:
     print(f'CBR error: {e}')
 
-# ─── Frankfurter (XE-like) ────────────────────────────────
+# ─── Open Exchange Rates (XE-like mid-market) ───────────────
 try:
-    rates = {}
-    pairs = ['USD', 'EUR', 'CNY']
-    for p in pairs:
-        url = f'https://api.frankfurter.app/latest?from={p}&to=RUB'
-        req = urllib.request.Request(url, headers={'User-Agent': 'rates-dashboard/1.0'})
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            d = json.loads(resp.read())
-            rates[p] = round(d['rates']['RUB'], 4)
+    url = 'https://open.er-api.com/v6/latest/USD'
+    req = urllib.request.Request(url, headers={'User-Agent': 'rates-dashboard/1.0'})
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        d = json.loads(resp.read())
+    rub = d['rates']['RUB']
+    rates = {
+        'USD': round(rub, 4),
+        'EUR': round(rub / d['rates']['EUR'], 4),
+        'CNY': round(rub / d['rates']['CNY'], 4)
+    }
     data['xe'] = rates
     print('XE:', rates)
 except Exception as e:
