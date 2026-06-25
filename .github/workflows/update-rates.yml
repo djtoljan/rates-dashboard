@@ -2,11 +2,11 @@ name: Update Exchange Rates
 
 on:
   schedule:
-    - cron: '*/30 7-22 * * 1-5'  # every 30 min, Mon-Fri, 7:00-22:00 MSK
-  workflow_dispatch:  # manual trigger
+    - cron: '*/30 7-22 * * 1-5'
+  workflow_dispatch:
   push:
     paths:
-      - 'xfee-rates.json'  # auto-update when xfee-rates.json is pushed
+      - 'xfee-rates.json'
 
 jobs:
   update:
@@ -16,54 +16,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch CBR rates
-        run: |
-          curl -s "https://www.cbr.ru/scripts/XML_daily.asp" -o cbr.xml
-          python3 << 'EOF'
-          import xml.etree.ElementTree as ET
-          import json
-          tree = ET.parse('cbr.xml')
-          root = tree.getroot()
-          rates = {}
-          targets = {'USD': 'R01235', 'EUR': 'R01239', 'CNY': 'R01375'}
-          for v in root.findall('Valute'):
-              vid = v.get('ID')
-              for code, tid in targets.items():
-                  if vid == tid:
-                      nominal = int(v.find('Nominal').text)
-                      value = float(v.find('Value').text.replace(',', '.'))
-                      rates[code] = round(value / nominal, 4)
-          with open('rates.json', 'r') as f:
-              data = json.load(f)
-          data['cbr'] = rates
-          data['updated'] = '$(date -u +"%Y-%m-%dT%H:%M:%SZ")'
-          with open('rates.json', 'w') as f:
-              json.dump(data, f, indent=2, ensure_ascii=False)
-          print('CBR:', rates)
-          EOF
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-      - name: Fetch Frankfurter (XE-like) rates
-        run: |
-          python3 << 'EOF'
-          import json, urllib.request
-          pairs = ['USD', 'EUR', 'CNY']
-          rates = {}
-          for p in pairs:
-              url = f'https://api.frankfurter.app/latest?from={p}&to=RUB'
-              with urllib.request.urlopen(url) as resp:
-                  data = json.loads(resp.read())
-                  rates[p] = round(data['rates']['RUB'], 4)
-          with open('rates.json', 'r') as f:
-              data = json.load(f)
-          data['xe'] = rates
-          with open('rates.json', 'w') as f:
-              json.dump(data, f, indent=2, ensure_ascii=False)
-          print('XE:', rates)
-          EOF
+      - name: Fetch rates
+        run: python3 update_rates.py
 
       - name: Commit & push
         run: |
           git config user.name "rates-bot"
           git config user.email "bot@rates.local"
           git add rates.json
-          git diff --staged --quiet || (git commit -m "🔄 $(date +'%Y-%m-%d %H:%M') MSK" && git push)
+          if ! git diff --staged --quiet; then
+            git commit -m "🔄 rates update $(date -u +'%Y-%m-%d %H:%M') UTC"
+            git push
+          else
+            echo "No changes"
+          fi
