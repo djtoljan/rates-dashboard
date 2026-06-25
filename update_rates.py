@@ -50,23 +50,35 @@ try:
 except Exception as e:
     print(f'XE error: {e}')
 
-# ─── Yahoo Finance — market rates ───────────────────────
+# ─── Yahoo Finance — market rates → all to RUB ──────────
 try:
     import yfinance as yf
-    yahoo = {}
-    tickers = {'USD': 'USDRUB=X', 'EUR': 'EURUSD=X', 'CNY': 'USDCNY=X', 'TRY': 'USDTRY=X'}
-    for code, ticker in tickers.items():
+    raw = {}
+    # Fetch market quotes: USD/RUB, EUR/USD, USD/CNY, USD/TRY
+    tickers = {'USDRUB': 'USDRUB=X', 'EURUSD': 'EURUSD=X', 'USDCNY': 'USDCNY=X', 'USDTRY': 'USDTRY=X'}
+    for key, ticker in tickers.items():
         t = yf.Ticker(ticker)
         d = t.history(period='1d')
         if not d.empty:
-            yahoo[code] = round(float(d['Close'].iloc[-1]), 4)
+            raw[key] = round(float(d['Close'].iloc[-1]), 4)
         else:
             info = t.info
             price = info.get('regularMarketPrice') or info.get('previousClose')
             if price:
-                yahoo[code] = round(float(price), 4)
+                raw[key] = round(float(price), 4)
+    # Convert all to RUB per unit
+    yahoo = {}
+    usd_rub = raw.get('USDRUB', 0)
+    if usd_rub:
+        yahoo['USD'] = usd_rub                          # USD/RUB
+        if raw.get('EURUSD'):
+            yahoo['EUR'] = round(raw['EURUSD'] * usd_rub, 4)   # EUR/RUB
+        if raw.get('USDCNY'):
+            yahoo['CNY'] = round(usd_rub / raw['USDCNY'], 4)   # CNY/RUB
+        if raw.get('USDTRY'):
+            yahoo['TRY'] = round(usd_rub / raw['USDTRY'], 4)   # TRY/RUB
     data['yahoo'] = yahoo
-    print('Yahoo:', yahoo)
+    print('Yahoo (RUB/unit):', yahoo)
 except Exception as e:
     print(f'Yahoo error: {e}')
 

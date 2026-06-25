@@ -63,7 +63,7 @@
   </div>
   <div class="card">
     <h2><span class="dot yahoo"></span> Рынок (Yahoo) <span class="badge live" id="yahoo-badge">live</span></h2>
-    <div class="rate-label" style="margin-bottom:6px">Котировки рынка</div>
+    <div class="rate-label" style="margin-bottom:6px">₽ за единицу</div>
     <div id="yahoo-rates"><span class="loading">Загрузка...</span></div>
   </div>
 </div>
@@ -167,18 +167,11 @@ function renderXFee() {
 
 function renderYahoo() {
   const el = document.getElementById('yahoo-rates');
-  const quotes = {
-    'USD': { pair: 'USD/RUB', rate: rates.yahoo['USD'] },
-    'EUR': { pair: 'EUR/USD', rate: rates.yahoo['EUR'] },
-    'CNY': { pair: 'USD/CNY', rate: rates.yahoo['CNY'] },
-    'TRY': { pair: 'USD/TRY', rate: rates.yahoo['TRY'] }
-  };
   let html = '';
   for (const c of CURRENCIES) {
-    const q = quotes[c];
-    const r = q.rate;
-    html += `<div class="rate-row"><span class="pair">${q.pair}</span>
-      <span class="rate">${r ? r.toFixed(4) : '<span style="color:#888">—</span>'}</span></div>`;
+    const r = rates.yahoo[c];
+    html += `<div class="rate-row"><span class="pair">${c}/RUB</span>
+      <span class="rate">${r ? r.toFixed(4)+' ₽' : '<span style="color:#888">—</span>'}</span></div>`;
   }
   el.innerHTML = html;
 }
@@ -209,22 +202,13 @@ function updateCalc() {
     return;
   }
 
-  // Yahoo: market quotes — USD/RUB, EUR/USD, USD/CNY, USD/TRY
+  // Yahoo: all rates are RUB per unit (same format as CBR)
   if (activeSource === 'yahoo') {
-    const usdRub = rates.yahoo['USD'];
-    const rate = rates.yahoo[currency];
-    if (!rate || !usdRub) { el.innerHTML='<div class="big">—</div><div class="detail">Нет данных</div>'; return; }
-    let rub;
-    if (currency === 'USD') {
-      rub = usdRub;
-    } else if (currency === 'EUR') {
-      rub = rate * usdRub;
-    } else {
-      rub = usdRub / rate;
-    }
-    const total = amount * rub;
+    const r = rates.yahoo[currency];
+    if (!r) { el.innerHTML='<div class="big">—</div><div class="detail">Нет данных</div>'; return; }
+    const total = amount * r;
     el.innerHTML = `<div class="big">${total.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})} ₽</div>
-      <div class="detail">${amount.toLocaleString('ru-RU')} ${currency} × ${rub.toFixed(4)} ₽ (${labels[activeSource]})</div>`;
+      <div class="detail">${amount.toLocaleString('ru-RU')} ${currency} × ${r.toFixed(4)} ₽/ед (${labels[activeSource]})</div>`;
     return;
   }
 
