@@ -58,11 +58,6 @@
     <div id="xe-rates"><span class="loading">Загрузка...</span></div>
   </div>
   <div class="card">
-    <h2><span class="dot xfee"></span> XFeepay <span class="badge stale" id="xfee-badge">ждём</span></h2>
-    <div class="rate-label" style="margin-bottom:6px">Котировки XFeepay</div>
-    <div id="xfee-rates"><span class="loading">Загрузка...</span></div>
-  </div>
-  <div class="card">
     <h2><span class="dot yahoo"></span> Рынок (Yahoo) <span class="badge live" id="yahoo-badge">live</span></h2>
     <div class="rate-label" style="margin-bottom:6px">₽ за единицу</div>
     <div id="yahoo-rates"><span class="loading">Загрузка...</span></div>
@@ -74,7 +69,6 @@
   <div class="rate-select" id="rate-buttons">
     <button data-source="cbr" class="active">ЦБ РФ</button>
     <button data-source="xe">XE / Рынок</button>
-    <button data-source="xfee">XFeepay</button>
     <button data-source="yahoo">Yahoo / Инвестинг</button>
   </div>
   <div class="calc-row">
@@ -94,11 +88,11 @@
 </div>
 
 <div class="footer">
-  ЦБ РФ • <a href="https://open.er-api.com" target="_blank">Open ER API</a> • <a href="https://finance.yahoo.com" target="_blank">Yahoo Finance</a> • автообновление GitHub Action
+  ЦБ РФ • <a href="https://open.er-api.com" target="_blank">Open ER API</a> • <a href="https://finance.yahoo.com" target="_blank">Yahoo Finance</a>
 </div>
 
 <script>
-let rates = { cbr:{}, xe:{}, xfee:{}, yahoo:{} };
+let rates = { cbr:{}, xe:{}, yahoo:{} };
 let activeSource = 'cbr';
 const CURRENCIES = ['USD','EUR','CNY','TRY'];
 
@@ -108,12 +102,11 @@ async function loadRates() {
     const data = await resp.json();
     rates.cbr = data.cbr || {};
     rates.xe = data.xe || {};
-    rates.xfee = data.xfee || {};
+
     rates.yahoo = data.yahoo || {};
 
     renderCBR();
     renderXE();
-    renderXFee();
     renderYahoo();
 
     if (data.updated) {
@@ -128,15 +121,6 @@ async function loadRates() {
       b.textContent = fresh ? 'live' : Math.round(age)+'м';
       b.className = 'badge '+(fresh?'live':'stale');
     });
-    // XFeepay badge
-    const xb = document.getElementById('xfee-badge');
-    if (Object.keys(rates.xfee).length > 0) {
-      xb.textContent = fresh ? 'live' : Math.round(age)+'м';
-      xb.className = 'badge '+(fresh?'live':'stale');
-    } else {
-      xb.textContent = 'ждём';
-      xb.className = 'badge stale';
-    }
     updateCalc();
   } catch(e) {
     document.getElementById('global-updated').textContent = 'Ошибка: '+e.message;
@@ -165,23 +149,6 @@ function renderXE() {
   el.innerHTML = html;
 }
 
-function renderXFee() {
-  const el = document.getElementById('xfee-rates');
-  const pairs = {
-    'USD': { label: 'USD/EUR', rate: rates.xfee['EUR'] },
-    'EUR': { label: 'USD/EUR', rate: rates.xfee['EUR'] },
-    'CNY': { label: 'USD/CNH', rate: rates.xfee['CNY'] },
-    'TRY': { label: 'TRY', rate: null }
-  };
-  let html = '';
-  // Show USD/EUR once, USD/CNH once, hide USD/TRY
-  html += `<div class="rate-row"><span class="pair">USD/EUR</span>
-    <span class="rate">${rates.xfee['EUR'] ? rates.xfee['EUR'].toFixed(4) : '<span style="color:#888">—</span>'}</span></div>`;
-  html += `<div class="rate-row"><span class="pair">USD/CNH</span>
-    <span class="rate">${rates.xfee['CNY'] ? rates.xfee['CNY'].toFixed(4) : '<span style="color:#888">—</span>'}</span></div>`;
-  el.innerHTML = html;
-}
-
 function renderYahoo() {
   const el = document.getElementById('yahoo-rates');
   let html = '';
@@ -197,7 +164,7 @@ function updateCalc() {
   const amount = parseFloat(document.getElementById('calc-amount').value) || 0;
   const currency = document.getElementById('calc-currency').value;
   const el = document.getElementById('calc-result');
-  const labels = {cbr:'ЦБ РФ', xe:'XE / Рынок', xfee:'XFeepay', yahoo:'Yahoo / Инвестинг'};
+  const labels = {cbr:'ЦБ РФ', xe:'XE / Рынок', yahoo:'Yahoo / Инвестинг'};
 
   if (activeSource === 'cbr') {
     const r = rates.cbr[currency];
@@ -226,22 +193,6 @@ function updateCalc() {
     const total = amount * r;
     el.innerHTML = `<div class="big">${total.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})} ₽</div>
       <div class="detail">${amount.toLocaleString('ru-RU')} ${currency} × ${r.toFixed(4)} ₽/ед (${labels[activeSource]})</div>`;
-    return;
-  }
-
-  // XFeepay: raw pairs USD/EUR, USD/CNH → convert to RUB via CBR
-  if (activeSource === 'xfee') {
-    const usdRub = rates.cbr['USD'];
-    if (currency === 'USD' || currency === 'TRY') {
-      el.innerHTML='<div class="big">—</div><div class="detail">XFeepay: нет данных для '+currency+'</div>'; return;
-    }
-    const raw = rates.xfee[currency];  // USD/EUR or USD/CNH
-    if (!raw || !usdRub) { el.innerHTML='<div class="big">—</div><div class="detail">Нет данных</div>'; return; }
-    const rub = usdRub / raw;
-    const pair = currency === 'EUR' ? 'USD/EUR' : 'USD/CNH';
-    const total = amount * rub;
-    el.innerHTML = `<div class="big">${total.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})} ₽</div>
-      <div class="detail">${amount.toLocaleString('ru-RU')} ${currency} × (${usdRub.toFixed(2)} ₽/USD / ${raw.toFixed(4)} ${pair}) = ${rub.toFixed(4)} ₽/ед (${labels[activeSource]})</div>`;
     return;
   }
 
