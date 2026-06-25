@@ -21,6 +21,9 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Install deps
+        run: pip install yfinance
+
       - name: Fetch rates
         run: python3 update_rates.py
 

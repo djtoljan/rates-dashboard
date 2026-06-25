@@ -50,6 +50,26 @@ try:
 except Exception as e:
     print(f'XE error: {e}')
 
+# ─── Yahoo Finance — market rates ───────────────────────
+try:
+    import yfinance as yf
+    yahoo = {}
+    tickers = {'USD': 'USDRUB=X', 'EUR': 'EURUSD=X', 'CNY': 'USDCNY=X', 'TRY': 'USDTRY=X'}
+    for code, ticker in tickers.items():
+        t = yf.Ticker(ticker)
+        d = t.history(period='1d')
+        if not d.empty:
+            yahoo[code] = round(float(d['Close'].iloc[-1]), 4)
+        else:
+            info = t.info
+            price = info.get('regularMarketPrice') or info.get('previousClose')
+            if price:
+                yahoo[code] = round(float(price), 4)
+    data['yahoo'] = yahoo
+    print('Yahoo:', yahoo)
+except Exception as e:
+    print(f'Yahoo error: {e}')
+
 # ─── Save ─────────────────────────────────────────────────
 data['updated'] = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 with open(RATES_FILE, 'w') as f:
