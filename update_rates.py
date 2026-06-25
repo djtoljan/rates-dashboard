@@ -34,8 +34,8 @@ try:
                 raw[code] = value / nominal
     # Convert to USD-base: USD/EUR, USD/CNY, USD/RUB
     rates = {
-        'USD/EUR': round(raw['EUR'] / raw['USD'], 4),
-        'USD/CNY': round(raw['CNY'] / raw['USD'], 4),
+        'USD/EUR': round(raw['USD'] / raw['EUR'], 4),
+        'USD/CNY': round(raw['USD'] / raw['CNY'], 4),
         'USD/RUB': round(raw['USD'], 4)
     }
     data['cbr'] = rates
@@ -50,10 +50,10 @@ try:
     with urllib.request.urlopen(req, timeout=15) as resp:
         d = json.loads(resp.read())
     rub = d['rates']['RUB']
-    # USD-base pairs
+    # open.er-api.com/latest/USD => USD is base, rates are already USD-base
     rates = {
-        'USD/EUR': round(rub / d['rates']['EUR'], 4),
-        'USD/CNY': round(rub / d['rates']['CNY'], 4),
+        'USD/EUR': round(d['rates']['EUR'], 4),
+        'USD/CNY': round(d['rates']['CNY'], 4),
         'USD/RUB': round(rub, 4)
     }
     data['xe'] = rates
