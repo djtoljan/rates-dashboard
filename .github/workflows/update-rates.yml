@@ -5,8 +5,8 @@ on:
     - cron: '*/30 7-22 * * 1-5'
   workflow_dispatch:
   push:
-    paths:
-      - 'xfee-rates.json'
+    paths-ignore:
+      - '*.md'
 
 jobs:
   update:
