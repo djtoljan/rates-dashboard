@@ -2,11 +2,15 @@ name: Update Exchange Rates
 
 on:
   schedule:
-    - cron: '*/30 7-22 * * 1-5'
+    - cron: '*/15 7-22 * * 1-5'
   workflow_dispatch:
   push:
     paths-ignore:
       - '*.md'
+
+concurrency:
+  group: rates-update
+  cancel-in-progress: true
 
 jobs:
   update:
