@@ -33,24 +33,7 @@ try:
 except Exception as e:
     print(f'CBR error: {e}')
 
-# ─── XE — USD per unit (via open.er-api.com) ────────────
-try:
-    url = 'https://open.er-api.com/v6/latest/USD'
-    req = urllib.request.Request(url, headers={'User-Agent': 'rates-dashboard/1.0'})
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        d = json.loads(resp.read())
-    # API gives rates per 1 USD. We need USD per 1 unit = 1 / rate
-    pairs = {'EUR': 'EUR', 'CNY': 'CNY', 'TRY': 'TRY'}
-    xe = {}
-    for code, key in pairs.items():
-        if key in d['rates'] and d['rates'][key] > 0:
-            xe[code] = round(1.0 / d['rates'][key], 4)
-    data['xe'] = xe
-    print('XE (USD/unit):', xe)
-except Exception as e:
-    print(f'XE error: {e}')
-
-# ─── Investing.com — прямые RUB-пары (рыночные) ────────
+# ─── Investing.com — все курсы (RUB-пары + кросс-курсы) ─
 try:
     import requests
     from bs4 import BeautifulSoup
@@ -60,8 +43,8 @@ try:
         'Accept-Language': 'en-US,en;q=0.9',
     }
 
-    # Прямые RUB-пары с investing.com — сразу RUB за единицу
-    pairs = {
+    # Прямые RUB-пары — RUB за единицу
+    rub_pairs = {
         'USD': 'https://www.investing.com/currencies/usd-rub',
         'EUR': 'https://www.investing.com/currencies/eur-rub',
         'CNY': 'https://www.investing.com/currencies/cny-rub',
@@ -69,7 +52,7 @@ try:
     }
 
     investing = {}
-    for code, url in pairs.items():
+    for code, url in rub_pairs.items():
         try:
             r = requests.get(url, headers=headers, timeout=15)
             soup = BeautifulSoup(r.text, 'html.parser')
@@ -85,6 +68,35 @@ try:
     if investing:
         data['investing'] = investing
         print('Investing.com (RUB/unit):', investing)
+
+    # Кросс-курсы (USD за единицу) — вместо XE/open.er-api.com
+    cross_pairs = {
+        'EUR': 'https://www.investing.com/currencies/eur-usd',      # USD per 1 EUR
+        'CNY': 'https://www.investing.com/currencies/usd-cny',      # CNY per 1 USD → invert
+        'TRY': 'https://www.investing.com/currencies/usd-try',      # TRY per 1 USD → invert
+    }
+
+    xe = {}
+    for code, url in cross_pairs.items():
+        try:
+            r = requests.get(url, headers=headers, timeout=15)
+            soup = BeautifulSoup(r.text, 'html.parser')
+            el = soup.find('div', {'data-test': 'instrument-price-last'})
+            if el:
+                val = float(el.text.strip().replace(',', ''))
+                if code == 'EUR':
+                    xe[code] = val  # EUR/USD = USD per 1 EUR
+                else:
+                    xe[code] = round(1.0 / val, 4)  # invert: USD/CNY → CNY per 1 USD → USD per 1 CNY
+                print(f'  {code}/USD: {xe[code]}')
+            else:
+                print(f'  {code}/USD: element not found')
+        except Exception as e:
+            print(f'  {code}/USD: {e}')
+
+    if xe:
+        data['xe'] = xe
+        print('Investing.com cross (USD/unit):', xe)
 
 except Exception as e:
     print(f'Investing.com error: {e}')

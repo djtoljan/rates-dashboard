@@ -53,7 +53,7 @@
     <div id="cbr-rates"><span class="loading">Загрузка...</span></div>
   </div>
   <div class="card">
-    <h2><span class="dot xe"></span> XE / Рынок <span class="badge live" id="xe-badge">live</span></h2>
+    <h2><span class="dot xe"></span> Кросс-курсы (Investing) <span class="badge live" id="xe-badge">live</span></h2>
     <div class="rate-label" style="margin-bottom:6px">USD за 1 единицу</div>
     <div id="xe-rates"><span class="loading">Загрузка...</span></div>
   </div>
@@ -68,7 +68,7 @@
   <h2>🧮 Калькулятор сделки</h2>
   <div class="rate-select" id="rate-buttons">
     <button data-source="cbr" class="active">ЦБ РФ</button>
-    <button data-source="xe">XE / Рынок</button>
+    <button data-source="xe">Кросс-курсы</button>
     <button data-source="investing">Investing.com</button>
   </div>
   <div class="calc-row">
@@ -164,7 +164,7 @@ function updateCalc() {
   const amount = parseFloat(document.getElementById('calc-amount').value) || 0;
   const currency = document.getElementById('calc-currency').value;
   const el = document.getElementById('calc-result');
-  const labels = {cbr:'ЦБ РФ', xe:'XE / Рынок', investing:'Investing.com'};
+  const labels = {cbr:'ЦБ РФ', xe:'Кросс-курсы', investing:'Investing.com'};
 
   if (activeSource === 'cbr') {
     const r = rates.cbr[currency];
