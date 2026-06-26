@@ -169,7 +169,7 @@ function renderInvesting() {
 function renderXFee() {
   const el = document.getElementById('xfee-rates');
   let html = '';
-  for (const c of ['CNH','EUR']) {
+  for (const c of ['EUR']) {
     const r = rates.xfee[c];
     html += `<div class="rate-row"><span class="pair">USD/${c}</span>
       <span class="rate">${r ? r.toFixed(4)+' '+c : '<span style="color:#888">—</span>'}</span></div>`;
