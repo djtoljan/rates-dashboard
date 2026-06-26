@@ -50,7 +50,7 @@ try:
 except Exception as e:
     print(f'XE error: {e}')
 
-# ─── Investing.com — market cross rates → RUB per unit ──
+# ─── Investing.com — прямые RUB-пары (рыночные) ────────
 try:
     import requests
     from bs4 import BeautifulSoup
@@ -60,40 +60,31 @@ try:
         'Accept-Language': 'en-US,en;q=0.9',
     }
 
+    # Прямые RUB-пары с investing.com — сразу RUB за единицу
     pairs = {
-        'EURUSD': 'https://www.investing.com/currencies/eur-usd',
-        'USDCNY': 'https://www.investing.com/currencies/usd-cny',
-        'USDTRY': 'https://www.investing.com/currencies/usd-try',
+        'USD': 'https://www.investing.com/currencies/usd-rub',
+        'EUR': 'https://www.investing.com/currencies/eur-rub',
+        'CNY': 'https://www.investing.com/currencies/cny-rub',
+        'TRY': 'https://www.investing.com/currencies/try-rub',
     }
 
-    raw = {}
-    for key, url in pairs.items():
+    investing = {}
+    for code, url in pairs.items():
         try:
             r = requests.get(url, headers=headers, timeout=15)
             soup = BeautifulSoup(r.text, 'html.parser')
             el = soup.find('div', {'data-test': 'instrument-price-last'})
             if el:
-                raw[key] = float(el.text.strip().replace(',', ''))
-                print(f'  {key}: {raw[key]}')
+                investing[code] = float(el.text.strip().replace(',', ''))
+                print(f'  {code}/RUB: {investing[code]}')
             else:
-                print(f'  {key}: element not found')
+                print(f'  {code}/RUB: element not found')
         except Exception as e:
-            print(f'  {key}: {e}')
+            print(f'  {code}/RUB: {e}')
 
-    # Convert to RUB per unit using CBR's USD/RUB as base
-    investing = {}
-    usd_rub = data.get('cbr', {}).get('USD', 0)
-    if usd_rub and raw.get('EURUSD'):
-        investing['USD'] = usd_rub  # USD/RUB from CBR
-        investing['EUR'] = round(raw['EURUSD'] * usd_rub, 4)
-        if raw.get('USDCNY'):
-            investing['CNY'] = round(usd_rub / raw['USDCNY'], 4)
-        if raw.get('USDTRY'):
-            investing['TRY'] = round(usd_rub / raw['USDTRY'], 4)
+    if investing:
         data['investing'] = investing
         print('Investing.com (RUB/unit):', investing)
-    else:
-        print('Investing.com: missing USD/RUB base rate from CBR')
 
 except Exception as e:
     print(f'Investing.com error: {e}')
