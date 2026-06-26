@@ -1,4 +1,4 @@
-"""Fetch rates: CBR (RUB/unit) + XE (USD/unit), write to rates.json"""
+"""Fetch rates: CBR (RUB/unit) + XE (USD/unit) + Investing.com (RUB/unit), write to rates.json"""
 import json, os, urllib.request
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
@@ -50,37 +50,53 @@ try:
 except Exception as e:
     print(f'XE error: {e}')
 
-# ─── Yahoo Finance — market rates → all to RUB ──────────
+# ─── Investing.com — market cross rates → RUB per unit ──
 try:
-    import yfinance as yf
+    import requests
+    from bs4 import BeautifulSoup
+
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language': 'en-US,en;q=0.9',
+    }
+
+    pairs = {
+        'EURUSD': 'https://www.investing.com/currencies/eur-usd',
+        'USDCNY': 'https://www.investing.com/currencies/usd-cny',
+        'USDTRY': 'https://www.investing.com/currencies/usd-try',
+    }
+
     raw = {}
-    # Fetch market quotes: USD/RUB, EUR/USD, USD/CNY, USD/TRY
-    tickers = {'USDRUB': 'USDRUB=X', 'EURUSD': 'EURUSD=X', 'USDCNY': 'USDCNY=X', 'USDTRY': 'USDTRY=X'}
-    for key, ticker in tickers.items():
-        t = yf.Ticker(ticker)
-        d = t.history(period='1d')
-        if not d.empty:
-            raw[key] = round(float(d['Close'].iloc[-1]), 4)
-        else:
-            info = t.info
-            price = info.get('regularMarketPrice') or info.get('previousClose')
-            if price:
-                raw[key] = round(float(price), 4)
-    # Convert all to RUB per unit
-    yahoo = {}
-    usd_rub = raw.get('USDRUB', 0)
-    if usd_rub:
-        yahoo['USD'] = usd_rub                          # USD/RUB
-        if raw.get('EURUSD'):
-            yahoo['EUR'] = round(raw['EURUSD'] * usd_rub, 4)   # EUR/RUB
+    for key, url in pairs.items():
+        try:
+            r = requests.get(url, headers=headers, timeout=15)
+            soup = BeautifulSoup(r.text, 'html.parser')
+            el = soup.find('div', {'data-test': 'instrument-price-last'})
+            if el:
+                raw[key] = float(el.text.strip().replace(',', ''))
+                print(f'  {key}: {raw[key]}')
+            else:
+                print(f'  {key}: element not found')
+        except Exception as e:
+            print(f'  {key}: {e}')
+
+    # Convert to RUB per unit using CBR's USD/RUB as base
+    investing = {}
+    usd_rub = data.get('cbr', {}).get('USD', 0)
+    if usd_rub and raw.get('EURUSD'):
+        investing['USD'] = usd_rub  # USD/RUB from CBR
+        investing['EUR'] = round(raw['EURUSD'] * usd_rub, 4)
         if raw.get('USDCNY'):
-            yahoo['CNY'] = round(usd_rub / raw['USDCNY'], 4)   # CNY/RUB
+            investing['CNY'] = round(usd_rub / raw['USDCNY'], 4)
         if raw.get('USDTRY'):
-            yahoo['TRY'] = round(usd_rub / raw['USDTRY'], 4)   # TRY/RUB
-    data['yahoo'] = yahoo
-    print('Yahoo (RUB/unit):', yahoo)
+            investing['TRY'] = round(usd_rub / raw['USDTRY'], 4)
+        data['investing'] = investing
+        print('Investing.com (RUB/unit):', investing)
+    else:
+        print('Investing.com: missing USD/RUB base rate from CBR')
+
 except Exception as e:
-    print(f'Yahoo error: {e}')
+    print(f'Investing.com error: {e}')
 
 # ─── Save ─────────────────────────────────────────────────
 data['updated'] = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
