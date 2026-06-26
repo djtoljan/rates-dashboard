@@ -101,6 +101,31 @@ try:
 except Exception as e:
     print(f'Investing.com error: {e}')
 
+# ─── XFeepay — CNH + EUR (USD per unit, без авторизации) ─
+try:
+    import requests as req_xfee
+
+    xfee = {}
+    xfee_pairs = {'CNH': 'CNH', 'EUR': 'EUR'}
+    for code, cur in xfee_pairs.items():
+        try:
+            url = f'https://xfeepay.com/e-core/api/exchange/channelRate?sourceCurrency=USD&targetCurrency={cur}'
+            r = req_xfee.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=15)
+            d = r.json()
+            rt = d.get('data', {}).get('realTimeRate')
+            if rt and rt > 0:
+                xfee[code] = round(rt, 4)
+                print(f'  XFee {cur}: {xfee[code]} (1 USD = {xfee[code]} {cur})')
+        except Exception as e:
+            print(f'  XFee {cur}: {e}')
+
+    if xfee:
+        data['xfee'] = xfee
+        print('XFeepay:', xfee)
+
+except Exception as e:
+    print(f'XFeepay error: {e}')
+
 # ─── Save ─────────────────────────────────────────────────
 data['updated'] = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 with open(RATES_FILE, 'w') as f:

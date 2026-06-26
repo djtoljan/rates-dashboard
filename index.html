@@ -59,8 +59,13 @@
   </div>
   <div class="card">
     <h2><span class="dot yahoo"></span> Investing.com <span class="badge live" id="investing-badge">live</span></h2>
-    <div class="rate-label" style="margin-bottom:6px">₽ за единицу (через кросс-курсы)</div>
+    <div class="rate-label" style="margin-bottom:6px">₽ за единицу</div>
     <div id="investing-rates"><span class="loading">Загрузка...</span></div>
+  </div>
+  <div class="card">
+    <h2><span class="dot xfee"></span> XFeepay <span class="badge live" id="xfee-badge">live</span></h2>
+    <div class="rate-label" style="margin-bottom:6px">1 USD = X</div>
+    <div id="xfee-rates"><span class="loading">Загрузка...</span></div>
   </div>
 </div>
 
@@ -88,11 +93,11 @@
 </div>
 
 <div class="footer">
-  ЦБ РФ • <a href="https://open.er-api.com" target="_blank">Open ER API</a> • <a href="https://www.investing.com" target="_blank">Investing.com</a>
+  ЦБ РФ • <a href="https://www.investing.com" target="_blank">Investing.com</a> • <a href="https://xfeepay.com" target="_blank">XFeepay</a>
 </div>
 
 <script>
-let rates = { cbr:{}, xe:{}, investing:{} };
+let rates = { cbr:{}, xe:{}, investing:{}, xfee:{} };
 let activeSource = 'cbr';
 const CURRENCIES = ['USD','EUR','CNY','TRY'];
 
@@ -102,12 +107,13 @@ async function loadRates() {
     const data = await resp.json();
     rates.cbr = data.cbr || {};
     rates.xe = data.xe || {};
-
     rates.investing = data.investing || {};
+    rates.xfee = data.xfee || {};
 
     renderCBR();
     renderXE();
     renderInvesting();
+    renderXFee();
 
     if (data.updated) {
       const d = new Date(data.updated);
@@ -116,7 +122,7 @@ async function loadRates() {
     }
     const age = data.updated ? (Date.now()-new Date(data.updated).getTime())/60000 : 999;
     const fresh = age < 60;
-    ['cbr','xe','investing'].forEach(s => {
+    ['cbr','xe','investing','xfee'].forEach(s => {
       const b = document.getElementById(s+'-badge');
       b.textContent = fresh ? 'live' : Math.round(age)+'м';
       b.className = 'badge '+(fresh?'live':'stale');
@@ -160,6 +166,17 @@ function renderInvesting() {
   el.innerHTML = html;
 }
 
+function renderXFee() {
+  const el = document.getElementById('xfee-rates');
+  let html = '';
+  for (const c of ['CNH','EUR']) {
+    const r = rates.xfee[c];
+    html += `<div class="rate-row"><span class="pair">USD/${c}</span>
+      <span class="rate">${r ? r.toFixed(4)+' '+c : '<span style="color:#888">—</span>'}</span></div>`;
+  }
+  el.innerHTML = html;
+}
+
 function updateCalc() {
   const amount = parseFloat(document.getElementById('calc-amount').value) || 0;
   const currency = document.getElementById('calc-currency').value;
@@ -175,7 +192,6 @@ function updateCalc() {
     return;
   }
 
-  // XE: rates are USD per unit. Convert to RUB via CBR's USD/RUB
   if (activeSource === 'xe') {
     const usdPerUnit = rates.xe[currency];
     const usdRub = rates.cbr['USD'];
@@ -186,7 +202,6 @@ function updateCalc() {
     return;
   }
 
-  // Investing.com: all rates are RUB per unit (same format as CBR)
   if (activeSource === 'investing') {
     const r = rates.investing[currency];
     if (!r) { el.innerHTML='<div class="big">—</div><div class="detail">Нет данных</div>'; return; }
