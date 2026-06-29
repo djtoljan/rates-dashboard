@@ -93,6 +93,42 @@
 </div>
 
 <div class="calc">
+  <h2>📐 Калькулятор сделки (много переменных)</h2>
+  <div class="calc-row">
+    <input type="number" id="deal-amount" placeholder="Сумма" value="34472" step="any" style="width:130px">
+    <select id="deal-from-curr" style="width:75px">
+      <option value="USD">USD</option>
+      <option value="EUR" selected>EUR</option>
+      <option value="CNY">CNY</option>
+    </select>
+    <select id="deal-op1" style="width:65px">
+      <option value="div" selected>÷</option>
+      <option value="mul">×</option>
+    </select>
+    <input type="number" id="deal-rate" placeholder="Курс" value="0.996" step="any" style="width:110px">
+    <span style="color:#888">+</span>
+    <input type="number" id="deal-fixed" placeholder="Фикс" value="65" step="any" style="width:90px">
+  </div>
+  <div class="calc-row">
+    <select id="deal-cross" style="width:160px">
+      <option value="none" selected>Без кросс-курса</option>
+      <option value="xe">EUR→USD (XE)</option>
+      <option value="xfee">EUR→USD (XFee)</option>
+    </select>
+    <select id="deal-op2" style="width:80px">
+      <option value="none" selected>—</option>
+      <option value="sell">sell %</option>
+      <option value="buy">buy %</option>
+    </select>
+    <input type="number" id="deal-comm" placeholder="Комиссия %" value="0.35" step="any" style="width:110px;display:none">
+  </div>
+  <div class="calc-result" id="deal-result">
+    <div class="big">—</div>
+    <div class="detail">Введите данные сделки</div>
+  </div>
+</div>
+
+<div class="calc">
   <h2>🔀 Кросс-калькулятор</h2>
   <div class="rate-select" id="cross-buttons">
     <button data-source="xe" class="active">XE (рынок)</button>
@@ -156,6 +192,7 @@ async function loadRates() {
     });
     updateCalc();
     updateCrossCalc();
+    updateDealCalc();
   } catch(e) {
     document.getElementById('global-updated').textContent = 'Ошибка: '+e.message;
   }
@@ -319,6 +356,84 @@ document.querySelectorAll('#cross-buttons button').forEach(btn => {
     updateCrossCalc();
   });
 });
+
+// ─── Калькулятор сделки (много переменных) ───
+let dealUseCross = 'none';
+
+document.getElementById('deal-op2').addEventListener('change', function() {
+  document.getElementById('deal-comm').style.display = (this.value === 'none') ? 'none' : '';
+  updateDealCalc();
+});
+document.getElementById('deal-cross').addEventListener('change', function() {
+  dealUseCross = this.value;
+  updateDealCalc();
+});
+
+function getCrossRate(fromCurr) {
+  if (dealUseCross === 'xe' && rates.xe[fromCurr]) return rates.xe[fromCurr];
+  if (dealUseCross === 'xfee' && fromCurr === 'EUR' && rates.xfee['EUR']) return 1 / rates.xfee['EUR'];
+  return null;
+}
+
+function updateDealCalc() {
+  const amount = parseFloat(document.getElementById('deal-amount').value) || 0;
+  const fromCurr = document.getElementById('deal-from-curr').value;
+  const op1 = document.getElementById('deal-op1').value;
+  const rate = parseFloat(document.getElementById('deal-rate').value) || 0;
+  const fixed = parseFloat(document.getElementById('deal-fixed').value) || 0;
+  const op2 = document.getElementById('deal-op2').value;
+  const comm = parseFloat(document.getElementById('deal-comm').value) || 0;
+  const el = document.getElementById('deal-result');
+
+  if (!amount || !rate) {
+    el.innerHTML = '<div class="big">—</div><div class="detail">Заполните сумму и курс</div>';
+    return;
+  }
+
+  // Step 1: apply cross rate if selected
+  let val = amount;
+  let formula = `${amount.toLocaleString('ru-RU')} ${fromCurr}`;
+
+  const crossR = getCrossRate(fromCurr);
+  if (dealUseCross !== 'none' && crossR) {
+    val = val * crossR;
+    formula += ` × ${crossR.toFixed(4)}`;
+  }
+
+  // Step 2: divide or multiply by rate
+  if (op1 === 'div') {
+    val = val / rate;
+    formula += ` ÷ ${rate}`;
+  } else {
+    val = val * rate;
+    formula += ` × ${rate}`;
+  }
+
+  // Step 3: commission (sell% or buy%)
+  if (op2 === 'sell') {
+    val = val / (1 - comm/100);
+    formula += ` ÷ (1 − ${comm}%)`;
+  } else if (op2 === 'buy') {
+    val = val * (1 + comm/100);
+    formula += ` × (1 + ${comm}%)`;
+  }
+
+  // Step 4: add fixed fee
+  if (fixed) {
+    val = val + fixed;
+    formula += ` + ${fixed}`;
+  }
+
+  const targetCurr = (dealUseCross !== 'none') ? 'USD' : fromCurr;
+  el.innerHTML = `<div class="big">${val.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})} ${targetCurr}</div>
+    <div class="detail">${formula} = ${val.toFixed(2)} ${targetCurr}</div>`;
+}
+
+['deal-amount','deal-rate','deal-fixed','deal-comm','deal-from-curr'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updateDealCalc);
+  document.getElementById(id).addEventListener('change', updateDealCalc);
+});
+document.getElementById('deal-op1').addEventListener('change', updateDealCalc);
 
 loadRates();
 setInterval(loadRates, 5*60*1000);
