@@ -1,8 +1,9 @@
 name: Update Exchange Rates
 
 on:
-  schedule:
-    - cron: '*/15 7-22 * * 1-5'
+  # schedule disabled: Investing.com blocks GH Actions IP, local cron handles updates
+  # schedule:
+  #   - cron: '*/15 7-22 * * 1-5'
   workflow_dispatch:
   push:
     paths-ignore:
