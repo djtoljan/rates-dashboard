@@ -92,6 +92,33 @@
   </div>
 </div>
 
+<div class="calc">
+  <h2>🔀 Кросс-калькулятор</h2>
+  <div class="rate-select" id="cross-buttons">
+    <button data-source="xe" class="active">XE (рынок)</button>
+    <button data-source="xfee">XFeepay</button>
+  </div>
+  <div class="calc-row">
+    <input type="number" id="cross-amount" placeholder="Сумма" value="1000" step="any">
+    <select id="cross-from">
+      <option value="EUR">EUR</option>
+      <option value="CNY">CNY</option>
+      <option value="TRY">TRY</option>
+    </select>
+    <span style="color:#888;font-weight:600">→</span>
+    <select id="cross-to">
+      <option value="USD">USD</option>
+      <option value="EUR">EUR</option>
+      <option value="CNY">CNY</option>
+    </select>
+    <button id="swap-cross" style="background:#252840;border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:8px;cursor:pointer;font-size:1rem" title="Поменять местами">⇄</button>
+  </div>
+  <div class="calc-result" id="cross-result">
+    <div class="big">—</div>
+    <div class="detail">Выберите валюту и сумму</div>
+  </div>
+</div>
+
 <div class="footer">
   ЦБ РФ • <a href="https://www.investing.com" target="_blank">Investing.com</a> • <a href="https://xfeepay.com" target="_blank">XFeepay</a>
 </div>
@@ -128,6 +155,7 @@ async function loadRates() {
       b.className = 'badge '+(fresh?'live':'stale');
     });
     updateCalc();
+    updateCrossCalc();
   } catch(e) {
     document.getElementById('global-updated').textContent = 'Ошибка: '+e.message;
   }
@@ -224,6 +252,73 @@ document.querySelectorAll('#rate-buttons button').forEach(btn => {
 });
 document.getElementById('calc-amount').addEventListener('input', updateCalc);
 document.getElementById('calc-currency').addEventListener('change', updateCalc);
+
+// ─── Кросс-калькулятор ───
+let crossSource = 'xe';
+
+function updateCrossCalc() {
+  const amount = parseFloat(document.getElementById('cross-amount').value) || 0;
+  const from = document.getElementById('cross-from').value;
+  const to = document.getElementById('cross-to').value;
+  const el = document.getElementById('cross-result');
+
+  if (from === to) {
+    el.innerHTML = `<div class="big">${amount.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})} ${to}</div>
+      <div class="detail">1 ${from} = 1 ${to}</div>`;
+    return;
+  }
+
+  // Use USD as base: build rates USD-per-unit for all currencies
+  const usdPer = {};
+  usdPer['USD'] = 1;
+
+  if (crossSource === 'xe') {
+    usdPer['EUR'] = rates.xe['EUR'] || null;
+    usdPer['CNY'] = rates.xe['CNY'] || null;
+    usdPer['TRY'] = rates.xe['TRY'] || null;
+  } else if (crossSource === 'xfee') {
+    // XFeepay: 1 USD = X CNH, 1 USD = X EUR
+    if (rates.xfee['EUR']) usdPer['EUR'] = 1 / rates.xfee['EUR'];
+    if (rates.xfee['CNH']) usdPer['CNY'] = 1 / rates.xfee['CNH'];
+  }
+
+  const fromRate = usdPer[from];
+  const toRate = usdPer[to];
+
+  if (!fromRate || !toRate) {
+    el.innerHTML = `<div class="big">—</div><div class="detail">Нет кросс-курса для ${from}→${to} (источник: ${crossSource.toUpperCase()})</div>`;
+    return;
+  }
+
+  const crossRate = fromRate / toRate;
+  const total = amount * crossRate;
+
+  const srcLabel = {xe:'XE (рынок)', xfee:'XFeepay'}[crossSource];
+  el.innerHTML = `<div class="big">${total.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})} ${to}</div>
+    <div class="detail">${amount.toLocaleString('ru-RU')} ${from} × ${crossRate.toFixed(6)} ${from}/${to} (${srcLabel})</div>`;
+}
+
+document.getElementById('cross-amount').addEventListener('input', updateCrossCalc);
+document.getElementById('cross-from').addEventListener('change', updateCrossCalc);
+document.getElementById('cross-to').addEventListener('change', updateCrossCalc);
+
+document.getElementById('swap-cross').addEventListener('click', () => {
+  const from = document.getElementById('cross-from');
+  const to = document.getElementById('cross-to');
+  const tmp = from.value;
+  from.value = to.value;
+  to.value = tmp;
+  updateCrossCalc();
+});
+
+document.querySelectorAll('#cross-buttons button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#cross-buttons button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    crossSource = btn.dataset.source;
+    updateCrossCalc();
+  });
+});
 
 loadRates();
 setInterval(loadRates, 5*60*1000);
