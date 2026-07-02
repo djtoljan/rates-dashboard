@@ -63,7 +63,7 @@
     <div id="investing-rates"><span class="loading">Загрузка...</span></div>
   </div>
   <div class="card">
-    <h2><span class="dot xfee"></span> XFeepay <span class="badge live" id="xfee-badge">live</span></h2>
+    <h2><span class="dot xfee"></span> Q8 <span class="badge live" id="xfee-badge">live</span></h2>
     <div class="rate-label" style="margin-bottom:6px">1 USD = X</div>
     <div id="xfee-rates"><span class="loading">Загрузка...</span></div>
   </div>
@@ -132,7 +132,7 @@
   <h2>🔀 Кросс-калькулятор</h2>
   <div class="rate-select" id="cross-buttons">
     <button data-source="xe" class="active">XE (рынок)</button>
-    <button data-source="xfee">XFeepay</button>
+    <button data-source="xfee">Q8</button>
   </div>
   <div class="calc-row">
     <input type="number" id="cross-amount" placeholder="Сумма" value="1000" step="any">
@@ -156,7 +156,7 @@
 </div>
 
 <div class="footer">
-  ЦБ РФ • <a href="https://www.investing.com" target="_blank">Investing.com</a> • <a href="https://xfeepay.com" target="_blank">XFeepay</a>
+  ЦБ РФ • <a href="https://www.investing.com" target="_blank">Investing.com</a> • <a href="https://xfeepay.com" target="_blank">Q8</a>
 </div>
 
 <script>
@@ -330,7 +330,7 @@ function updateCrossCalc() {
   const crossRate = fromRate / toRate;
   const total = amount * crossRate;
 
-  const srcLabel = {xe:'XE (рынок)', xfee:'XFeepay'}[crossSource];
+  const srcLabel = {xe:'XE (рынок)', xfee:'Q8'}[crossSource];
   el.innerHTML = `<div class="big">${total.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})} ${to}</div>
     <div class="detail">${amount.toLocaleString('ru-RU')} ${from} × ${crossRate.toFixed(6)} ${from}/${to} (${srcLabel})</div>`;
 }
