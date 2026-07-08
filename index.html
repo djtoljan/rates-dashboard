@@ -226,7 +226,7 @@ function renderInvesting() {
   for (const c of CURRENCIES) {
     const r = rates.investing[c];
     html += `<div class="rate-row"><span class="pair">${c}/RUB</span>
-      <span class="rate">${r ? r.toFixed(4)+' ₽' : '<span style="color:#888">—</span>'}</span></div>`;
+      <span class="rate">${r ? r.toFixed(8)+' ₽' : '<span style="color:#888">—</span>'}</span></div>`;
   }
   el.innerHTML = html;
 }
