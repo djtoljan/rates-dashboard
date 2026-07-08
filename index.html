@@ -215,7 +215,7 @@ function renderXE() {
   for (const c of ['EUR','CNY','TRY']) {
     const r = rates.xe[c];
     html += `<div class="rate-row"><span class="pair">${c}</span>
-      <span class="rate">${r ? '1 '+c+' = '+r.toFixed(4)+' USD' : '<span style="color:#888">—</span>'}</span></div>`;
+      <span class="rate">${r ? '1 '+c+' = '+r.toFixed(8)+' USD' : '<span style="color:#888">—</span>'}</span></div>`;
   }
   el.innerHTML = html;
 }
@@ -263,7 +263,7 @@ function updateCalc() {
     if (!usdPerUnit || !usdRub) { el.innerHTML='<div class="big">—</div><div class="detail">Нет данных</div>'; return; }
     const total = amount * usdPerUnit * usdRub;
     el.innerHTML = `<div class="big">${total.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})} ₽</div>
-      <div class="detail">${amount.toLocaleString('ru-RU')} ${currency} × ${usdPerUnit.toFixed(4)} USD/ед × ${usdRub.toFixed(4)} ₽/USD (${labels[activeSource]})</div>`;
+      <div class="detail">${amount.toLocaleString('ru-RU')} ${currency} × ${usdPerUnit.toFixed(8)} USD/ед × ${usdRub.toFixed(4)} ₽/USD (${labels[activeSource]})</div>`;
     return;
   }
 
@@ -272,7 +272,7 @@ function updateCalc() {
     if (!r) { el.innerHTML='<div class="big">—</div><div class="detail">Нет данных</div>'; return; }
     const total = amount * r;
     el.innerHTML = `<div class="big">${total.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})} ₽</div>
-      <div class="detail">${amount.toLocaleString('ru-RU')} ${currency} × ${r.toFixed(4)} ₽/ед (${labels[activeSource]})</div>`;
+      <div class="detail">${amount.toLocaleString('ru-RU')} ${currency} × ${r.toFixed(8)} ₽/ед (${labels[activeSource]})</div>`;
     return;
   }
 

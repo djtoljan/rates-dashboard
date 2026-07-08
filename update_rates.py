@@ -87,7 +87,7 @@ try:
                 if code == 'EUR':
                     xe[code] = val  # EUR/USD = USD per 1 EUR
                 else:
-                    xe[code] = round(1.0 / val, 4)  # invert: USD/CNY → CNY per 1 USD → USD per 1 CNY
+                    xe[code] = 1.0 / val  # invert: USD/CNY → CNY per 1 USD → USD per 1 CNY (keep full precision)
                 print(f'  {code}/USD: {xe[code]}')
             else:
                 print(f'  {code}/USD: element not found')
@@ -114,7 +114,7 @@ try:
             d = r.json()
             rt = d.get('data', {}).get('realTimeRate')
             if rt and rt > 0:
-                xfee[code] = round(rt, 4)
+                xfee[code] = rt  # keep full precision from API (8+ decimal places)
                 print(f'  XFee {cur}: {xfee[code]} (1 USD = {xfee[code]} {cur})')
         except Exception as e:
             print(f'  XFee {cur}: {e}')
