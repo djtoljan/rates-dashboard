@@ -1,9 +1,9 @@
-"""Fetch rates: CBR (RUB/unit) + XE (USD/unit) + Investing.com (RUB/unit), write to rates.json"""
+"""Fetch rates: CBR (RUB/unit) + open.er-api.com cross-rates + XFeepay, write to rates.json"""
 import json, os, urllib.request
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 
-RATES_FILE = os.path.join(os.getcwd(), 'rates.json')
+RATES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'rates.json')
 
 # Load existing data
 try:
@@ -33,79 +33,41 @@ try:
 except Exception as e:
     print(f'CBR error: {e}')
 
-# ─── Investing.com — все курсы (RUB-пары + кросс-курсы) ─
+# ─── Cross-rates — open.er-api.com (USD per unit) ────────
 try:
-    import requests
-    from bs4 import BeautifulSoup
-
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept-Language': 'en-US,en;q=0.9',
-    }
-
-    # Прямые RUB-пары — RUB за единицу
-    rub_pairs = {
-        'USD': 'https://www.investing.com/currencies/usd-rub',
-        'EUR': 'https://www.investing.com/currencies/eur-rub',
-        'CNY': 'https://www.investing.com/currencies/cny-rub',
-        'TRY': 'https://www.investing.com/currencies/try-rub',
-    }
-
-    investing = {}
-    for code, url in rub_pairs.items():
-        try:
-            r = requests.get(url, headers=headers, timeout=15)
-            soup = BeautifulSoup(r.text, 'html.parser')
-            el = soup.find('div', {'data-test': 'instrument-price-last'})
-            if el:
-                investing[code] = float(el.text.strip().replace(',', ''))
-                print(f'  {code}/RUB: {investing[code]}')
-            else:
-                print(f'  {code}/RUB: element not found')
-        except Exception as e:
-            print(f'  {code}/RUB: {e}')
-
-    if investing:
-        data['investing'] = investing
-        print('Investing.com (RUB/unit):', investing)
-
-    # Кросс-курсы (USD за единицу) — вместо XE/open.er-api.com
-    cross_pairs = {
-        'EUR': 'https://www.investing.com/currencies/eur-usd',      # USD per 1 EUR
-        'CNY': 'https://www.investing.com/currencies/usd-cny',      # CNY per 1 USD → invert
-        'TRY': 'https://www.investing.com/currencies/usd-try',      # TRY per 1 USD → invert
-    }
-
+    import requests as req_xe
     xe = {}
-    for code, url in cross_pairs.items():
-        try:
-            r = requests.get(url, headers=headers, timeout=15)
-            soup = BeautifulSoup(r.text, 'html.parser')
-            el = soup.find('div', {'data-test': 'instrument-price-last'})
-            if el:
-                val = float(el.text.strip().replace(',', ''))
-                if code == 'EUR':
-                    xe[code] = val  # EUR/USD = USD per 1 EUR
-                else:
-                    xe[code] = 1.0 / val  # invert: USD/CNY → CNY per 1 USD → USD per 1 CNY (keep full precision)
-                print(f'  {code}/USD: {xe[code]}')
-            else:
-                print(f'  {code}/USD: element not found')
-        except Exception as e:
-            print(f'  {code}/USD: {e}')
-
+    
+    # EUR/USD
+    try:
+        r = req_xe.get('https://open.er-api.com/v6/latest/EUR', timeout=15)
+        xe['EUR'] = float(r.json()['rates']['USD'])
+        print(f'  EUR/USD: {xe["EUR"]}')
+    except Exception as e:
+        print(f'  EUR/USD error: {e}')
+    
+    # USD/CNY (invert to USD per 1 CNY) + USD/TRY (invert)
+    try:
+        r = req_xe.get('https://open.er-api.com/v6/latest/USD', timeout=15)
+        rates = r.json()['rates']
+        xe['CNY'] = 1.0 / float(rates['CNY'])
+        xe['TRY'] = 1.0 / float(rates['TRY'])
+        print(f'  CNY/USD: {xe["CNY"]}')
+        print(f'  TRY/USD: {xe["TRY"]}')
+    except Exception as e:
+        print(f'  USD pairs error: {e}')
+    
     if xe:
         data['xe'] = xe
-        print('Investing.com cross (USD/unit):', xe)
-
+        print('Cross-rates (USD/unit):', xe)
 except Exception as e:
-    print(f'Investing.com error: {e}')
+    print(f'Cross-rates error: {e}')
 
-# ─── XFeepay — CNH + EUR (USD per unit, без авторизации) ─
+# ─── XFeepay — market rates ──────────────────────────────
 try:
     import requests as req_xfee
-
     xfee = {}
+    
     xfee_pairs = {'CNH': 'CNH', 'EUR': 'EUR'}
     for code, cur in xfee_pairs.items():
         try:
@@ -114,15 +76,14 @@ try:
             d = r.json()
             rt = d.get('data', {}).get('realTimeRate')
             if rt and rt > 0:
-                xfee[code] = rt  # keep full precision from API (8+ decimal places)
+                xfee[code] = float(rt)
                 print(f'  XFee {cur}: {xfee[code]} (1 USD = {xfee[code]} {cur})')
         except Exception as e:
             print(f'  XFee {cur}: {e}')
-
+    
     if xfee:
         data['xfee'] = xfee
         print('XFeepay:', xfee)
-
 except Exception as e:
     print(f'XFeepay error: {e}')
 
