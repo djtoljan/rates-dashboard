@@ -11,7 +11,8 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 // ─── CONFIG ─────────────────────────────────────────────
-const TOKEN = 'ghp_pIv5OrB1aF0nPBG0aXg2GsSmH3F6Gq3VFldR';
+const TOKEN = process.env.GH_TOKEN || '';
+if (!TOKEN) { console.log('❌ GH_TOKEN env var not set'); process.exit(1); }
 const OWNER = 'djtoljan';
 const REPO = 'rates-dashboard';
 const FILE = 'rates.json';
