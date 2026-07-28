@@ -53,14 +53,14 @@
     <div id="cbr-rates"><span class="loading">Загрузка...</span></div>
   </div>
   <div class="card">
-    <h2><span class="dot xe"></span> Кросс-курсы (Investing) <span class="badge live" id="xe-badge">live</span></h2>
+    <h2><span class="dot xe"></span> Кросс-курсы (exchangerate.fun) <span class="badge live" id="cross-badge">live</span></h2>
     <div class="rate-label" style="margin-bottom:6px">USD за 1 единицу</div>
-    <div id="xe-rates"><span class="loading">Загрузка...</span></div>
+    <div id="cross-rates"><span class="loading">Загрузка...</span></div>
   </div>
   <div class="card">
-    <h2><span class="dot yahoo"></span> Investing.com <span class="badge live" id="investing-badge">live</span></h2>
+    <h2><span class="dot yahoo"></span> MOEX (биржа) <span class="badge live" id="moex-badge">live</span></h2>
     <div class="rate-label" style="margin-bottom:6px">₽ за единицу</div>
-    <div id="investing-rates"><span class="loading">Загрузка...</span></div>
+    <div id="moex-rates"><span class="loading">Загрузка...</span></div>
   </div>
   <div class="card">
     <h2><span class="dot xfee"></span> Q8 <span class="badge live" id="xfee-badge">live</span></h2>
@@ -73,8 +73,8 @@
   <h2>🧮 Калькулятор сделки</h2>
   <div class="rate-select" id="rate-buttons">
     <button data-source="cbr" class="active">ЦБ РФ</button>
-    <button data-source="xe">Кросс-курсы</button>
-    <button data-source="investing">Investing.com</button>
+    <button data-source="cross">Кросс-курсы</button>
+    <button data-source="moex">MOEX (биржа)</button>
   </div>
   <div class="calc-row">
     <input type="number" id="calc-amount" placeholder="Сумма" value="10000" step="any">
@@ -112,7 +112,7 @@
   <div class="calc-row">
     <select id="deal-cross" style="width:160px">
       <option value="none" selected>Без кросс-курса</option>
-      <option value="xe">EUR→USD (XE)</option>
+      <option value="cross">EUR→USD (Кросс)</option>
       <option value="xfee">EUR→USD (XFee)</option>
     </select>
     <select id="deal-op2" style="width:80px">
@@ -131,7 +131,7 @@
 <div class="calc">
   <h2>🔀 Кросс-калькулятор</h2>
   <div class="rate-select" id="cross-buttons">
-    <button data-source="xe" class="active">XE (рынок)</button>
+    <button data-source="cross" class="active">Кросс (рынок)</button>
     <button data-source="xfee">Q8</button>
   </div>
   <div class="calc-row">
@@ -156,11 +156,11 @@
 </div>
 
 <div class="footer">
-  ЦБ РФ • <a href="https://www.investing.com" target="_blank">Investing.com</a> • <a href="https://xfeepay.com" target="_blank">Q8</a>
+  ЦБ РФ • <a href="https://www.moex.com" target="_blank">MOEX</a> • exchangerate.fun • <a href="https://xfeepay.com" target="_blank">Q8</a>
 </div>
 
 <script>
-let rates = { cbr:{}, xe:{}, investing:{}, xfee:{} };
+let rates = { cbr:{}, cross:{}, moex:{}, xfee:{}, alerts:[] };
 let activeSource = 'cbr';
 const CURRENCIES = ['USD','EUR','CNY','TRY'];
 
@@ -169,13 +169,14 @@ async function loadRates() {
     const resp = await fetch('rates.json?t='+Date.now());
     const data = await resp.json();
     rates.cbr = data.cbr || {};
-    rates.xe = data.xe || {};
-    rates.investing = data.investing || {};
+    rates.cross = data.cross || {};
+    rates.moex = data.moex || {};
     rates.xfee = data.xfee || {};
+    rates.alerts = data.alerts || [];
 
     renderCBR();
-    renderXE();
-    renderInvesting();
+    renderCross();
+    renderMOEX();
     renderXFee();
 
     if (data.updated) {
@@ -185,8 +186,9 @@ async function loadRates() {
     }
     const age = data.updated ? (Date.now()-new Date(data.updated).getTime())/60000 : 999;
     const fresh = age < 60;
-    ['cbr','xe','investing','xfee'].forEach(s => {
+    ['cbr','cross','moex','xfee'].forEach(s => {
       const b = document.getElementById(s+'-badge');
+      if (!b) return;
       b.textContent = fresh ? 'live' : Math.round(age)+'м';
       b.className = 'badge '+(fresh?'live':'stale');
     });
@@ -209,24 +211,25 @@ function renderCBR() {
   el.innerHTML = html;
 }
 
-function renderXE() {
-  const el = document.getElementById('xe-rates');
+function renderCross() {
+  const el = document.getElementById('cross-rates');
   let html = '';
   for (const c of ['EUR','CNY','TRY']) {
-    const r = rates.xe[c];
+    const r = rates.cross[c];
     html += `<div class="rate-row"><span class="pair">${c}</span>
       <span class="rate">${r ? '1 '+c+' = '+r.toFixed(8)+' USD' : '<span style="color:#888">—</span>'}</span></div>`;
   }
   el.innerHTML = html;
 }
 
-function renderInvesting() {
-  const el = document.getElementById('investing-rates');
+function renderMOEX() {
+  const el = document.getElementById('moex-rates');
   let html = '';
-  for (const c of CURRENCIES) {
-    const r = rates.investing[c];
+  for (const c of ['USD','EUR']) {
+    const entry = rates.moex[c];
+    const r = entry ? entry.rate : null;
     html += `<div class="rate-row"><span class="pair">${c}/RUB</span>
-      <span class="rate">${r ? r.toFixed(8)+' ₽' : '<span style="color:#888">—</span>'}</span></div>`;
+      <span class="rate">${r ? r.toFixed(4)+' ₽' : '<span style="color:#888">—</span>'}</span></div>`;
   }
   el.innerHTML = html;
 }
@@ -246,7 +249,7 @@ function updateCalc() {
   const amount = parseFloat(document.getElementById('calc-amount').value) || 0;
   const currency = document.getElementById('calc-currency').value;
   const el = document.getElementById('calc-result');
-  const labels = {cbr:'ЦБ РФ', xe:'Кросс-курсы', investing:'Investing.com'};
+  const labels = {cbr:'ЦБ РФ', cross:'Кросс-курсы', moex:'MOEX'};
 
   if (activeSource === 'cbr') {
     const r = rates.cbr[currency];
@@ -257,8 +260,8 @@ function updateCalc() {
     return;
   }
 
-  if (activeSource === 'xe') {
-    const usdPerUnit = rates.xe[currency];
+  if (activeSource === 'cross') {
+    const usdPerUnit = rates.cross[currency];
     const usdRub = rates.cbr['USD'];
     if (!usdPerUnit || !usdRub) { el.innerHTML='<div class="big">—</div><div class="detail">Нет данных</div>'; return; }
     const total = amount * usdPerUnit * usdRub;
@@ -267,12 +270,13 @@ function updateCalc() {
     return;
   }
 
-  if (activeSource === 'investing') {
-    const r = rates.investing[currency];
+  if (activeSource === 'moex') {
+    const entry = rates.moex[currency];
+    const r = entry ? entry.rate : null;
     if (!r) { el.innerHTML='<div class="big">—</div><div class="detail">Нет данных</div>'; return; }
     const total = amount * r;
     el.innerHTML = `<div class="big">${total.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})} ₽</div>
-      <div class="detail">${amount.toLocaleString('ru-RU')} ${currency} × ${r.toFixed(8)} ₽/ед (${labels[activeSource]})</div>`;
+      <div class="detail">${amount.toLocaleString('ru-RU')} ${currency} × ${r.toFixed(4)} ₽/ед (${labels[activeSource]})</div>`;
     return;
   }
 
@@ -291,7 +295,7 @@ document.getElementById('calc-amount').addEventListener('input', updateCalc);
 document.getElementById('calc-currency').addEventListener('change', updateCalc);
 
 // ─── Кросс-калькулятор ───
-let crossSource = 'xe';
+let crossSource = 'cross';
 
 function updateCrossCalc() {
   const amount = parseFloat(document.getElementById('cross-amount').value) || 0;
@@ -309,10 +313,10 @@ function updateCrossCalc() {
   const usdPer = {};
   usdPer['USD'] = 1;
 
-  if (crossSource === 'xe') {
-    usdPer['EUR'] = rates.xe['EUR'] || null;
-    usdPer['CNY'] = rates.xe['CNY'] || null;
-    usdPer['TRY'] = rates.xe['TRY'] || null;
+  if (crossSource === 'cross') {
+    usdPer['EUR'] = rates.cross['EUR'] || null;
+    usdPer['CNY'] = rates.cross['CNY'] || null;
+    usdPer['TRY'] = rates.cross['TRY'] || null;
   } else if (crossSource === 'xfee') {
     // XFeepay: 1 USD = X CNH, 1 USD = X EUR
     if (rates.xfee['EUR']) usdPer['EUR'] = 1 / rates.xfee['EUR'];
@@ -330,7 +334,7 @@ function updateCrossCalc() {
   const crossRate = fromRate / toRate;
   const total = amount * crossRate;
 
-  const srcLabel = {xe:'XE (рынок)', xfee:'Q8'}[crossSource];
+  const srcLabel = {cross:'Кросс (рынок)', xfee:'Q8'}[crossSource];
   el.innerHTML = `<div class="big">${total.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})} ${to}</div>
     <div class="detail">${amount.toLocaleString('ru-RU')} ${from} × ${crossRate.toFixed(8)} ${from}/${to} (${srcLabel})</div>`;
 }
@@ -370,7 +374,7 @@ document.getElementById('deal-cross').addEventListener('change', function() {
 });
 
 function getCrossRate(fromCurr) {
-  if (dealUseCross === 'xe' && rates.xe[fromCurr]) return rates.xe[fromCurr];
+  if (dealUseCross === 'cross' && rates.cross[fromCurr]) return rates.cross[fromCurr];
   if (dealUseCross === 'xfee' && fromCurr === 'EUR' && rates.xfee['EUR']) return 1 / rates.xfee['EUR'];
   return null;
 }
