@@ -2,7 +2,7 @@ name: Update Exchange Rates
 
 on:
   schedule:
-    - cron: '*/30 7-22 * * 1-5'
+    - cron: '*/5 * * * *'
   workflow_dispatch:
   push:
     paths-ignore:

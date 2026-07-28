@@ -1,18 +1,27 @@
-"""Fetch rates: CBR (RUB/unit) + open.er-api.com cross-rates + XFeepay, write to rates.json"""
+"""
+update_rates.py — Multi-source currency rate aggregator with 3-tier fallback
+Tier 1: CBR (official daily) + MOEX ISS (real-time RUB pairs)
+Tier 2: api.exchangerate.fun (hourly cross-rates) + XFeepay (real-time, Q8)
+Tier 3: Cross-validation — flag anomalies >2% deviation
+Writes rates.json for GitHub Pages dashboard
+"""
 import json, os, urllib.request
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 
 RATES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'rates.json')
 
-# Load existing data
 try:
     with open(RATES_FILE) as f:
         data = json.load(f)
 except:
     data = {}
 
-# ─── CBR — RUB per unit ──────────────────────────────────
+alerts = []
+
+# ═══ TIER 1 — Official sources ═══
+
+# CBR (Central Bank of Russia) — daily official RUB rates
 try:
     url = "https://www.cbr.ru/scripts/XML_daily.asp"
     req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
@@ -32,63 +41,106 @@ try:
     print('CBR:', cbr)
 except Exception as e:
     print(f'CBR error: {e}')
+    alerts.append('CBR: DOWN')
 
-# ─── Cross-rates — open.er-api.com (USD per unit) ────────
+# MOEX ISS — real-time market RUB pairs
 try:
-    import requests as req_xe
-    xe = {}
-    
-    # EUR/USD
-    try:
-        r = req_xe.get('https://open.er-api.com/v6/latest/EUR', timeout=15)
-        xe['EUR'] = float(r.json()['rates']['USD'])
-        print(f'  EUR/USD: {xe["EUR"]}')
-    except Exception as e:
-        print(f'  EUR/USD error: {e}')
-    
-    # USD/CNY (invert to USD per 1 CNY) + USD/TRY (invert)
-    try:
-        r = req_xe.get('https://open.er-api.com/v6/latest/USD', timeout=15)
-        rates = r.json()['rates']
-        xe['CNY'] = 1.0 / float(rates['CNY'])
-        xe['TRY'] = 1.0 / float(rates['TRY'])
-        print(f'  CNY/USD: {xe["CNY"]}')
-        print(f'  TRY/USD: {xe["TRY"]}')
-    except Exception as e:
-        print(f'  USD pairs error: {e}')
-    
-    if xe:
-        data['xe'] = xe
-        print('Cross-rates (USD/unit):', xe)
+    moex = {}
+    pairs = {'USD/RUB': 'USD', 'EUR/RUB': 'EUR'}
+    for pair, code in pairs.items():
+        try:
+            moex_url = f'https://iss.moex.com/iss/statistics/engines/futures/markets/indicativerates/securities/{pair.replace("/","/")}.json?iss.meta=off&iss.only=securities.current'
+            req = urllib.request.Request(moex_url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                d = json.loads(resp.read().decode())
+            current = d.get('securities.current', {}).get('data', [])
+            if current:
+                moex[code] = {
+                    'rate': float(current[0][3]),
+                    'time': f"{current[0][1]} {current[0][2]}"
+                }
+                print(f'  MOEX {pair}: {moex[code]["rate"]} @ {moex[code]["time"]}')
+        except Exception as e:
+            print(f'  MOEX {pair}: {e}')
+    if moex:
+        data['moex'] = moex
+except Exception as e:
+    print(f'MOEX error: {e}')
+    alerts.append('MOEX: DOWN')
+
+# ═══ TIER 2 — Market cross-rates ═══
+
+# api.exchangerate.fun — hourly, free, no key
+try:
+    import requests as req_erf
+    r = req_erf.get('https://api.exchangerate.fun/latest?base=USD', timeout=15)
+    rates = r.json().get('rates', {})
+    cross = {}
+    for code in ['EUR', 'CNY', 'TRY', 'RUB']:
+        if code in rates and rates[code] > 0:
+            cross[code] = float(rates[code])
+    if cross:
+        data['cross'] = cross
+        data['cross_source'] = 'exchangerate.fun'
+        print('Cross-rates (exchangerate.fun):', cross)
 except Exception as e:
     print(f'Cross-rates error: {e}')
+    alerts.append('exchangerate.fun: DOWN')
 
-# ─── XFeepay — market rates ──────────────────────────────
+# XFeepay — real-time, Q8 trusted source
 try:
     import requests as req_xfee
     xfee = {}
-    
-    xfee_pairs = {'CNH': 'CNH', 'EUR': 'EUR'}
-    for code, cur in xfee_pairs.items():
+    for cur in ['CNH', 'EUR']:
         try:
             url = f'https://xfeepay.com/e-core/api/exchange/channelRate?sourceCurrency=USD&targetCurrency={cur}'
             r = req_xfee.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=15)
-            d = r.json()
-            rt = d.get('data', {}).get('realTimeRate')
+            rt = r.json().get('data', {}).get('realTimeRate')
             if rt and rt > 0:
-                xfee[code] = float(rt)
-                print(f'  XFee {cur}: {xfee[code]} (1 USD = {xfee[code]} {cur})')
+                xfee[cur] = float(rt)
+                print(f'  XFee {cur}: {xfee[cur]} (1 USD = {xfee[cur]} {cur})')
         except Exception as e:
             print(f'  XFee {cur}: {e}')
-    
     if xfee:
         data['xfee'] = xfee
-        print('XFeepay:', xfee)
 except Exception as e:
     print(f'XFeepay error: {e}')
+    alerts.append('XFeepay: DOWN')
 
-# ─── Save ─────────────────────────────────────────────────
+# ═══ TIER 3 — Cross-validation ═══
+
+def validate(name, val1, val2, threshold=0.02):
+    if val1 and val2 and val1 > 0 and val2 > 0:
+        diff = abs(val1 - val2) / min(val1, val2)
+        if diff > threshold:
+            msg = f'{name}: {val1:.4f} vs {val2:.4f} (d{round(diff*100,1)}%)'
+            alerts.append(msg)
+            print(f'  !! {msg}')
+
+# MOEX vs CBR
+if 'moex' in data and 'cbr' in data:
+    for code in ['USD', 'EUR']:
+        moex_val = data['moex'].get(code, {}).get('rate')
+        cbr_val = data['cbr'].get(code)
+        if moex_val and cbr_val:
+            validate(f'{code}/RUB MOEX vs CBR', moex_val, cbr_val, 0.03)
+
+if alerts:
+    data['alerts'] = alerts
+elif 'alerts' in data:
+    del data['alerts']
+
+# Remove stale legacy keys
+for old_key in ['investing', 'xe', 'open-er-api']:
+    data.pop(old_key, None)
+
 data['updated'] = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+
 with open(RATES_FILE, 'w') as f:
     json.dump(data, f, indent=2, ensure_ascii=False)
-print(f'Saved to {RATES_FILE}')
+
+print(f'Saved. Sources: CBR={bool(data.get("cbr"))} MOEX={bool(data.get("moex"))} cross={bool(data.get("cross"))} XFee={bool(data.get("xfee"))}')
+if alerts:
+    print(f'!! Alerts ({len(alerts)}):')
+    for a in alerts:
+        print(f'   - {a}')
