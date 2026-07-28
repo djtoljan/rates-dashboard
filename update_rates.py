@@ -1,7 +1,7 @@
 """
 update_rates.py — Multi-source currency rate aggregator with 3-tier fallback
 Tier 1: CBR (official daily) + MOEX ISS (real-time RUB pairs)
-Tier 2: api.exchangerate.fun (hourly cross-rates) + XFeepay (real-time, Q8)
+Tier 2: Twelve Data (real-time forex) + api.exchangerate.fun (hourly cross-rates) + XFeepay (real-time, Q8)
 Tier 3: Cross-validation — flag anomalies >2% deviation
 Writes rates.json for GitHub Pages dashboard
 """
@@ -69,6 +69,33 @@ except Exception as e:
     alerts.append('MOEX: DOWN')
 
 # ═══ TIER 2 — Market cross-rates ═══
+
+# Twelve Data — real-time forex market rates (closest to Investing.com)
+try:
+    td_key = '2f7624538586423f828e26e22e050c31'
+    td_pairs = ['USD/RUB','EUR/RUB','CNY/RUB','EUR/USD']  # TRY/RUB not available on free tier
+    td_symbols = ','.join(td_pairs)
+    td_url = f'https://api.twelvedata.com/quote?symbol={td_symbols}&apikey={td_key}'
+    import requests as req_td
+    r = req_td.get(td_url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=15)
+    td_data = r.json()
+    twelvedata = {}
+    # API returns single quote or dict keyed by symbol
+    for pair in td_pairs:
+        quote = td_data.get(pair) if isinstance(td_data, dict) else td_data
+        if isinstance(td_data, dict) and pair in td_data:
+            quote = td_data[pair]
+        elif pair not in td_data:
+            continue
+        if quote and quote.get('close'):
+            twelvedata[pair] = float(quote['close'])
+    if twelvedata:
+        data['twelvedata'] = twelvedata
+        data['td_updated'] = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+        print('Twelve Data:', twelvedata)
+except Exception as e:
+    print(f'Twelve Data error: {e}')
+    alerts.append('Twelve Data: DOWN')
 
 # api.exchangerate.fun — hourly, free, no key
 try:
