@@ -63,6 +63,11 @@
     <div id="moex-rates"><span class="loading">Загрузка...</span></div>
   </div>
   <div class="card">
+    <h2><span class="dot xe"></span> Рынок (Twelve Data) <span class="badge live" id="td-badge">live</span></h2>
+    <div class="rate-label" style="margin-bottom:6px">~Investing.com</div>
+    <div id="td-rates"><span class="loading">Загрузка...</span></div>
+  </div>
+  <div class="card">
     <h2><span class="dot xfee"></span> Q8 <span class="badge live" id="xfee-badge">live</span></h2>
     <div class="rate-label" style="margin-bottom:6px">1 USD = X</div>
     <div id="xfee-rates"><span class="loading">Загрузка...</span></div>
@@ -75,6 +80,7 @@
     <button data-source="cbr" class="active">ЦБ РФ</button>
     <button data-source="cross">Кросс-курсы</button>
     <button data-source="moex">MOEX (биржа)</button>
+    <button data-source="td">Twelve Data</button>
   </div>
   <div class="calc-row">
     <input type="number" id="calc-amount" placeholder="Сумма" value="10000" step="any">
@@ -160,7 +166,7 @@
 </div>
 
 <script>
-let rates = { cbr:{}, cross:{}, moex:{}, xfee:{}, alerts:[] };
+let rates = { cbr:{}, cross:{}, moex:{}, xfee:{}, twelvedata:{}, alerts:[] };
 let activeSource = 'cbr';
 const CURRENCIES = ['USD','EUR','CNY','TRY'];
 
@@ -172,11 +178,13 @@ async function loadRates() {
     rates.cross = data.cross || {};
     rates.moex = data.moex || {};
     rates.xfee = data.xfee || {};
+    rates.twelvedata = data.twelvedata || {};
     rates.alerts = data.alerts || [];
 
     renderCBR();
     renderCross();
     renderMOEX();
+    renderTD();
     renderXFee();
 
     if (data.updated) {
@@ -186,7 +194,7 @@ async function loadRates() {
     }
     const age = data.updated ? (Date.now()-new Date(data.updated).getTime())/60000 : 999;
     const fresh = age < 60;
-    ['cbr','cross','moex','xfee'].forEach(s => {
+    ['cbr','cross','moex','td','xfee'].forEach(s => {
       const b = document.getElementById(s+'-badge');
       if (!b) return;
       b.textContent = fresh ? 'live' : Math.round(age)+'м';
@@ -235,6 +243,22 @@ function renderMOEX() {
   el.innerHTML = html;
 }
 
+function renderTD() {
+  const el = document.getElementById('td-rates');
+  let html = '';
+  const td = rates.twelvedata;
+  for (const c of ['USD','EUR','CNY']) {
+    const r = td[c+'/RUB'];
+    html += `<div class="rate-row"><span class="pair">${c}/RUB</span>
+      <span class="rate">${r ? r.toFixed(4)+' ₽' : '<span style="color:#888">—</span>'}</span></div>`;
+  }
+  // Cross-rate: EUR/USD
+  const eurusd = td['EUR/USD'];
+  html += `<div class="rate-row"><span class="pair">EUR/USD</span>
+    <span class="rate">${eurusd ? '1 EUR = $'+eurusd.toFixed(4) : '<span style="color:#888">—</span>'}</span></div>`;
+  el.innerHTML = html;
+}
+
 function renderXFee() {
   const el = document.getElementById('xfee-rates');
   let html = '';
@@ -250,7 +274,7 @@ function updateCalc() {
   const amount = parseFloat(document.getElementById('calc-amount').value) || 0;
   const currency = document.getElementById('calc-currency').value;
   const el = document.getElementById('calc-result');
-  const labels = {cbr:'ЦБ РФ', cross:'Кросс-курсы', moex:'MOEX'};
+  const labels = {cbr:'ЦБ РФ', cross:'Кросс-курсы', moex:'MOEX', td:'Twelve Data'};
 
   if (activeSource === 'cbr') {
     const r = rates.cbr[currency];
@@ -274,6 +298,15 @@ function updateCalc() {
   if (activeSource === 'moex') {
     const entry = rates.moex[currency];
     const r = entry ? entry.rate : null;
+    if (!r) { el.innerHTML='<div class="big">—</div><div class="detail">Нет данных</div>'; return; }
+    const total = amount * r;
+    el.innerHTML = `<div class="big">${total.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})} ₽</div>
+      <div class="detail">${amount.toLocaleString('ru-RU')} ${currency} × ${r.toFixed(4)} ₽/ед (${labels[activeSource]})</div>`;
+    return;
+  }
+
+  if (activeSource === 'td') {
+    const r = rates.twelvedata[currency+'/RUB'];
     if (!r) { el.innerHTML='<div class="big">—</div><div class="detail">Нет данных</div>'; return; }
     const total = amount * r;
     el.innerHTML = `<div class="big">${total.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})} ₽</div>
