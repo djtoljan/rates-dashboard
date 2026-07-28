@@ -216,8 +216,9 @@ function renderCross() {
   let html = '';
   for (const c of ['EUR','CNY','TRY']) {
     const r = rates.cross[c];
+    const inv = r ? 1/r : null;
     html += `<div class="rate-row"><span class="pair">${c}</span>
-      <span class="rate">${r ? '1 '+c+' = '+r.toFixed(8)+' USD' : '<span style="color:#888">—</span>'}</span></div>`;
+      <span class="rate">${inv ? '1 '+c+' = $'+inv.toFixed(6) : '<span style="color:#888">—</span>'}</span></div>`;
   }
   el.innerHTML = html;
 }
@@ -261,12 +262,12 @@ function updateCalc() {
   }
 
   if (activeSource === 'cross') {
-    const usdPerUnit = rates.cross[currency];
+    const usdPerUnit = rates.cross[currency] ? 1/rates.cross[currency] : null;
     const usdRub = rates.cbr['USD'];
     if (!usdPerUnit || !usdRub) { el.innerHTML='<div class="big">—</div><div class="detail">Нет данных</div>'; return; }
     const total = amount * usdPerUnit * usdRub;
     el.innerHTML = `<div class="big">${total.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})} ₽</div>
-      <div class="detail">${amount.toLocaleString('ru-RU')} ${currency} × ${usdPerUnit.toFixed(8)} USD/ед × ${usdRub.toFixed(4)} ₽/USD (${labels[activeSource]})</div>`;
+      <div class="detail">${amount.toLocaleString('ru-RU')} ${currency} × $${usdPerUnit.toFixed(6)}/ед × ${usdRub.toFixed(4)} ₽/$ (${labels[activeSource]})</div>`;
     return;
   }
 
@@ -314,9 +315,9 @@ function updateCrossCalc() {
   usdPer['USD'] = 1;
 
   if (crossSource === 'cross') {
-    usdPer['EUR'] = rates.cross['EUR'] || null;
-    usdPer['CNY'] = rates.cross['CNY'] || null;
-    usdPer['TRY'] = rates.cross['TRY'] || null;
+    usdPer['EUR'] = rates.cross['EUR'] ? 1/rates.cross['EUR'] : null;
+    usdPer['CNY'] = rates.cross['CNY'] ? 1/rates.cross['CNY'] : null;
+    usdPer['TRY'] = rates.cross['TRY'] ? 1/rates.cross['TRY'] : null;
   } else if (crossSource === 'xfee') {
     // XFeepay: 1 USD = X CNH, 1 USD = X EUR
     if (rates.xfee['EUR']) usdPer['EUR'] = 1 / rates.xfee['EUR'];
@@ -374,7 +375,7 @@ document.getElementById('deal-cross').addEventListener('change', function() {
 });
 
 function getCrossRate(fromCurr) {
-  if (dealUseCross === 'cross' && rates.cross[fromCurr]) return rates.cross[fromCurr];
+  if (dealUseCross === 'cross' && rates.cross[fromCurr]) return 1 / rates.cross[fromCurr];
   if (dealUseCross === 'xfee' && fromCurr === 'EUR' && rates.xfee['EUR']) return 1 / rates.xfee['EUR'];
   return null;
 }
