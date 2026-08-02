@@ -9,7 +9,7 @@
     "CNH": 6.736425,
     "EUR": 0.8636316065
   },
-  "updated": "2026-08-02T00:45:49Z",
+  "updated": "2026-08-02T00:46:13Z",
   "moex": {
     "USD": {
       "rate": 79.4637,
@@ -33,5 +33,8 @@
     "CNY/RUB": 11.77592,
     "EUR/USD": 1.15342
   },
-  "td_updated": "2026-08-02T00:45:43Z"
+  "td_updated": "2026-08-02T00:46:09Z",
+  "alerts": [
+    "exchangerate.fun: DOWN"
+  ]
 }
