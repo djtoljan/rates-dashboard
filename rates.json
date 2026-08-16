@@ -7,9 +7,9 @@
   },
   "xfee": {
     "CNH": 6.725783,
-    "EUR": 0.861078442
+    "EUR": 0.8610974135
   },
-  "updated": "2026-08-16T20:46:21Z",
+  "updated": "2026-08-16T20:54:34Z",
   "moex": {
     "USD": {
       "rate": 84.5449,
@@ -28,12 +28,12 @@
   },
   "cross_source": "exchangerate.fun",
   "twelvedata": {
-    "USD/RUB": 84.24756,
-    "EUR/RUB": 97.47826,
-    "CNY/RUB": 12.49636,
-    "EUR/USD": 1.15707
+    "USD/RUB": 84.08597,
+    "EUR/RUB": 97.26677,
+    "CNY/RUB": 12.47352,
+    "EUR/USD": 1.15674
   },
-  "td_updated": "2026-08-16T20:46:17Z",
+  "td_updated": "2026-08-16T20:54:31Z",
   "alerts": [
     "exchangerate.fun: DOWN"
   ]
