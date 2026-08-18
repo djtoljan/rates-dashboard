@@ -9,15 +9,15 @@
     "CNH": 6.7342,
     "EUR": 0.861272151
   },
-  "updated": "2026-08-18T19:15:50Z",
+  "updated": "2026-08-18T19:16:11Z",
   "moex": {
     "USD": {
       "rate": 85.1645,
-      "time": "2026-08-18 22:15:41"
+      "time": "2026-08-18 22:16:01"
     },
     "EUR": {
       "rate": 98.7312,
-      "time": "2026-08-18 22:15:41"
+      "time": "2026-08-18 22:16:01"
     }
   },
   "cross": {
@@ -29,9 +29,12 @@
   "cross_source": "exchangerate.fun",
   "twelvedata": {
     "USD/RUB": 85.0058,
-    "EUR/RUB": 98.41181,
+    "EUR/RUB": 98.41051,
     "CNY/RUB": 12.60402,
     "EUR/USD": 1.15775
   },
-  "td_updated": "2026-08-18T19:15:43Z"
+  "td_updated": "2026-08-18T19:16:07Z",
+  "alerts": [
+    "exchangerate.fun: DOWN"
+  ]
 }
