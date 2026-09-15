@@ -6,10 +6,10 @@
     "TRY": 1.7398
   },
   "xfee": {
-    "CNH": 6.694883,
-    "EUR": 0.863169301
+    "CNH": 6.69772,
+    "EUR": 0.8635677025
   },
-  "updated": "2026-09-14T22:34:36Z",
+  "updated": "2026-09-15T00:52:51Z",
   "moex": {
     "USD": {
       "rate": 84.3363,
@@ -28,12 +28,12 @@
   },
   "cross_source": "exchangerate.fun",
   "twelvedata": {
-    "USD/RUB": 84.42858,
-    "EUR/RUB": 97.52175,
-    "CNY/RUB": 12.58704,
-    "EUR/USD": 1.15515
+    "USD/RUB": 84.46628,
+    "EUR/RUB": 97.51725,
+    "CNY/RUB": 12.58647,
+    "EUR/USD": 1.15449
   },
-  "td_updated": "2026-09-14T22:34:32Z",
+  "td_updated": "2026-09-15T00:52:47Z",
   "alerts": [
     "exchangerate.fun: DOWN"
   ]
